@@ -48,19 +48,17 @@ export default function GraferPage() {
     return d
   }, [data, kategori, merke])
 
-  // Chart 1: Average price per retailer by category
-  const avgByCategory = useMemo(() => {
-    const cats = kategori !== 'alle' ? [kategori] : categories
-    return cats.map(cat => {
-      const rows = (merke !== 'alle' ? filtered : data).filter(r => r.kategori === cat)
-      const entry = { kategori: cat }
-      RETAILERS.forEach(r => {
-        const vals = rows.map(row => row[r.key]).filter(v => v != null)
-        entry[r.label] = vals.length ? +(vals.reduce((s, v) => s + Number(v), 0) / vals.length).toFixed(2) : null
-      })
-      return entry
+  // Chart 1: Average price per retailer — one bar group per retailer
+  const avgByRetailer = useMemo(() => {
+    return RETAILERS.map(r => {
+      const vals = filtered.map(row => row[r.key]).filter(v => v != null).map(Number)
+      return {
+        name: r.label,
+        snitt: vals.length ? +(vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : 0,
+        color: r.color,
+      }
     })
-  }, [data, filtered, categories, kategori, merke])
+  }, [filtered])
 
   // Chart 2: Cheapest retailer distribution (pie)
   const cheapestDist = useMemo(() => {
@@ -86,7 +84,8 @@ export default function GraferPage() {
         if (prices.length < 2) return null
         const min = Math.min(...prices)
         const max = Math.max(...prices)
-        return { name: row.produkt?.slice(0, 30), spread: +(max - min).toFixed(2), min, max }
+        const label = row.produkt || ''
+        return { name: label.length > 25 ? label.slice(0, 25) + '...' : label, spread: +(max - min).toFixed(2), min, max }
       })
       .filter(Boolean)
       .sort((a, b) => b.spread - a.spread)
@@ -100,11 +99,20 @@ export default function GraferPage() {
         <div className="chart-tooltip-label">{label}</div>
         {payload.map(p => (
           <div key={p.name} className="chart-tooltip-row">
-            <span className="chart-tooltip-dot" style={{ background: p.color }}></span>
-            {p.name}: {fmt(p.value)} kr
+            <span className="chart-tooltip-dot" style={{ background: p.payload?.color || p.color }}></span>
+            {fmt(p.value)} kr
           </div>
         ))}
       </div>
+    )
+  }
+
+  const renderPieLabel = ({ name, value, cx, x }) => {
+    const anchor = x > cx ? 'start' : 'end'
+    return (
+      <text x={x} y={0} textAnchor={anchor} fontSize={11} fontFamily="DM Mono" fill="var(--text)">
+        {name} ({value})
+      </text>
     )
   }
 
@@ -143,6 +151,9 @@ export default function GraferPage() {
           <option value="alle">Alle merker</option>
           {brands.map(b => <option key={b} value={b}>{b}</option>)}
         </select>
+        <div className="controls-right">
+          <span className="count-badge">{filtered.length} produkter</span>
+        </div>
       </div>
 
       {loading ? (
@@ -154,17 +165,28 @@ export default function GraferPage() {
         <div className="charts-grid">
           <div className="chart-card">
             <h3 className="chart-title">Gjennomsnittspris per apotek</h3>
-            <p className="chart-desc">Snittpris per kategori fordelt på apotek</p>
-            <ResponsiveContainer width="100%" height={340}>
-              <BarChart data={avgByCategory} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="kategori" tick={{ fontSize: 11, fontFamily: 'DM Mono' }} angle={-20} textAnchor="end" />
-                <YAxis tick={{ fontSize: 11, fontFamily: 'DM Mono' }} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 12, fontFamily: 'DM Mono' }} />
-                {RETAILERS.map(r => (
-                  <Bar key={r.key} dataKey={r.label} fill={r.color} radius={[3, 3, 0, 0]} />
-                ))}
+            <p className="chart-desc">Snittpris basert på {filtered.length} produkter</p>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={avgByRetailer} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11, fontFamily: 'DM Mono' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fontFamily: 'DM Mono' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={50}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg)' }} />
+                <Bar dataKey="snitt" name="Snittpris" radius={[4, 4, 0, 0]}>
+                  {avgByRetailer.map(e => (
+                    <Cell key={e.name} fill={e.color} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -172,7 +194,7 @@ export default function GraferPage() {
           <div className="chart-card">
             <h3 className="chart-title">Billigst oftest</h3>
             <p className="chart-desc">Hvilken kjede har lavest pris flest ganger</p>
-            <ResponsiveContainer width="100%" height={340}>
+            <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
                   data={cheapestDist}
@@ -180,10 +202,10 @@ export default function GraferPage() {
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={120}
-                  label={({ name, value }) => `${name} (${value})`}
+                  outerRadius={90}
+                  innerRadius={40}
+                  label={renderPieLabel}
                   labelLine={{ stroke: 'var(--text-faint)' }}
-                  style={{ fontSize: 11, fontFamily: 'DM Mono' }}
                 >
                   {cheapestDist.map(e => (
                     <Cell key={e.name} fill={e.color} />
@@ -195,20 +217,32 @@ export default function GraferPage() {
           </div>
 
           <div className="chart-card chart-card-wide">
-            <h3 className="chart-title">Topp 10 st&#248;rst prisforskjell</h3>
-            <p className="chart-desc">Produkter med st&#248;rst differanse mellom billigst og dyrest</p>
+            <h3 className="chart-title">Topp 10 største prisforskjeller</h3>
+            <p className="chart-desc">Produkter med størst differanse mellom billigst og dyrest</p>
             {topSpread.length === 0 ? (
               <div className="empty" style={{ padding: '2rem' }}>
-                <div className="empty-text">For f&#229; priser &#229; sammenligne</div>
+                <div className="empty-text">For få priser å sammenligne</div>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={Math.max(300, topSpread.length * 40)}>
-                <BarChart data={topSpread} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis type="number" tick={{ fontSize: 11, fontFamily: 'DM Mono' }} />
-                  <YAxis dataKey="name" type="category" width={160} tick={{ fontSize: 11, fontFamily: 'DM Mono' }} />
+              <ResponsiveContainer width="100%" height={Math.max(260, topSpread.length * 36)}>
+                <BarChart data={topSpread} layout="vertical" margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 11, fontFamily: 'DM Mono' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={140}
+                    tick={{ fontSize: 10, fontFamily: 'DM Mono' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <Tooltip formatter={(v) => `${fmt(v)} kr`} labelStyle={{ fontFamily: 'DM Mono' }} />
-                  <Bar dataKey="spread" name="Prisforskjell" fill="var(--red)" radius={[0, 3, 3, 0]} />
+                  <Bar dataKey="spread" name="Prisforskjell" fill="var(--red)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -217,7 +251,7 @@ export default function GraferPage() {
       )}
 
       <footer className="footer">
-        <span>Karo Healthcare Norway · Prisdata fra Farmasiet, Boots, Vitusapotek, Apotek 1</span>
+        <span>Karo Healthcare Norway</span>
         <span>Oppdateres daglig kl. 03:00</span>
       </footer>
     </div>
