@@ -1,4 +1,4 @@
-import { supabaseServer as supabase } from '@/lib/supabaseServer'
+import { supabaseServer as supabase } from '../../../lib/supabaseServer'
 
 export async function GET(request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
