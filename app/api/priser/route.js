@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { supabaseServer } from '@/lib/supabaseServer'
 
 export async function GET(request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -13,7 +13,7 @@ export async function GET(request) {
   const kategori = searchParams.get('kategori')
   const search = searchParams.get('search')
 
-  let query = supabase
+  let query = supabaseServer
     .from('prissammenligning')
     .select('*')
     .order('kategori')
