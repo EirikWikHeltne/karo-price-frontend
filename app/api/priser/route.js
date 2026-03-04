@@ -1,6 +1,14 @@
-import { supabase } from '@/lib/supabase'
+import { supabaseServer as supabase } from '@/lib/supabaseServer'
 
 export async function GET(request) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('Missing Supabase env vars:', {
+      url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      key: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    })
+    return Response.json({ error: 'Server misconfiguration: missing env vars' }, { status: 500 })
+  }
+
   const { searchParams } = new URL(request.url)
   const kategori = searchParams.get('kategori')
   const search = searchParams.get('search')
