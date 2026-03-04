@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+import { supabase } from '@/lib/supabase'
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
@@ -21,11 +16,18 @@ export async function GET(request) {
   }
 
   if (search) {
-    query = query.or(`produkt.ilike.%${search}%,merke.ilike.%${search}%,varenummer.ilike.%${search}%`)
+    // Strip characters with special meaning in PostgREST filter syntax
+    const safe = search.replace(/[(),.\\*"]/g, '')
+    if (safe) {
+      query = query.or(`produkt.ilike.%${safe}%,merke.ilike.%${safe}%,varenummer.ilike.%${safe}%`)
+    }
   }
 
   const { data, error } = await query
 
-  if (error) return Response.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('Supabase error:', error)
+    return Response.json({ error: 'Failed to fetch data' }, { status: 500 })
+  }
   return Response.json(data)
 }
