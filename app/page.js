@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import Link from 'next/link'
 import * as XLSX from 'xlsx'
 
 const RETAILERS = [
@@ -30,6 +31,7 @@ export default function Page() {
   const [error, setError]       = useState(null)
   const [search, setSearch]     = useState('')
   const [kategori, setKategori] = useState('alle')
+  const [merke, setMerke]       = useState('alle')
   const [sortCol, setSortCol]   = useState('merke')
   const [sortDir, setSortDir]   = useState('asc')
   const [lastUpdated, setLastUpdated] = useState(null)
@@ -64,16 +66,23 @@ export default function Page() {
     return () => clearTimeout(t)
   }, [fetchData])
 
+  const brands = useMemo(() => {
+    if (!data.length) return []
+    return [...new Set(data.map(r => r.merke).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  }, [data])
+
   const sorted = useMemo(() => {
     if (!data.length) return []
-    return [...data].sort((a, b) => {
+    let filtered = data
+    if (merke !== 'alle') filtered = filtered.filter(r => r.merke === merke)
+    return [...filtered].sort((a, b) => {
       let av = a[sortCol], bv = b[sortCol]
       if (av === null || av === undefined) av = sortDir === 'asc' ? Infinity : -Infinity
       if (bv === null || bv === undefined) bv = sortDir === 'asc' ? Infinity : -Infinity
       if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
       return sortDir === 'asc' ? av - bv : bv - av
     })
-  }, [data, sortCol, sortDir])
+  }, [data, merke, sortCol, sortDir])
 
   const stats = useMemo(() => {
     if (!data.length) return {}
@@ -127,11 +136,17 @@ export default function Page() {
           <div className="header-logo">KARO PRISER</div>
           <div className="header-sub">Prisovervåking</div>
         </div>
-        <div className="header-meta">
-          <span className="header-dot"></span>
-          {lastUpdated
-            ? `Oppdatert ${lastUpdated.toLocaleDateString('nb-NO', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}`
-            : 'Laster...'}
+        <div className="header-right">
+          <nav className="header-nav">
+            <span className="nav-link active">Tabell</span>
+            <Link href="/grafer" className="nav-link">Grafer</Link>
+          </nav>
+          <div className="header-meta">
+            <span className="header-dot"></span>
+            {lastUpdated
+              ? `Oppdatert ${lastUpdated.toLocaleDateString('nb-NO', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}`
+              : 'Laster...'}
+          </div>
         </div>
       </header>
 
@@ -156,6 +171,14 @@ export default function Page() {
             </button>
           ))}
         </div>
+        <select
+          className="brand-select"
+          value={merke}
+          onChange={e => setMerke(e.target.value)}
+        >
+          <option value="alle">Alle merker</option>
+          {brands.map(b => <option key={b} value={b}>{b}</option>)}
+        </select>
         <div className="controls-right">
           <span className="count-badge">{sorted.length} produkter</span>
           <button
