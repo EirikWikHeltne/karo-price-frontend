@@ -1,4 +1,6 @@
-import { supabaseServer } from '@/lib/supabaseServer'
+import { createClient } from '@supabase/supabase-js'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -9,11 +11,16 @@ export async function GET(request) {
     return Response.json({ error: 'Server misconfiguration: missing env vars' }, { status: 500 })
   }
 
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  )
+
   const { searchParams } = new URL(request.url)
   const kategori = searchParams.get('kategori')
   const search = searchParams.get('search')
 
-  let query = supabaseServer
+  let query = supabase
     .from('prissammenligning')
     .select('*')
     .order('kategori')
