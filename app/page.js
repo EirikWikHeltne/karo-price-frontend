@@ -19,13 +19,14 @@ const CAT_CLASS = {
 }
 
 function fmt(val) {
-  if (val == null) return null
+  if (val === null || val === undefined) return null
   return Number(val).toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export default function Page() {
   const [data, setData]         = useState([])
   const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
   const [search, setSearch]     = useState('')
   const [kategori, setKategori] = useState('alle')
   const [sortCol, setSortCol]   = useState('merke')
@@ -34,11 +35,15 @@ export default function Page() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const params = new URLSearchParams()
       if (kategori !== 'alle') params.set('kategori', kategori)
       if (search) params.set('search', search)
       const res = await fetch(`/api/priser?${params}`)
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`)
+      }
       const json = await res.json()
       setData(json || [])
       if (json?.length) {
@@ -47,6 +52,8 @@ export default function Page() {
       }
     } catch(e) {
       console.error(e)
+      setError('Kunne ikke hente priser. Prøv igjen.')
+      setData([])
     }
     setLoading(false)
   }, [kategori, search])
@@ -54,14 +61,14 @@ export default function Page() {
   useEffect(() => {
     const t = setTimeout(fetchData, search ? 300 : 0)
     return () => clearTimeout(t)
-  }, [fetchData, search])
+  }, [fetchData])
 
   const sorted = useMemo(() => {
     if (!data.length) return []
     return [...data].sort((a, b) => {
       let av = a[sortCol], bv = b[sortCol]
-      if (av == null) av = sortDir === 'asc' ? Infinity : -Infinity
-      if (bv == null) bv = sortDir === 'asc' ? Infinity : -Infinity
+      if (av === null || av === undefined) av = sortDir === 'asc' ? Infinity : -Infinity
+      if (bv === null || bv === undefined) bv = sortDir === 'asc' ? Infinity : -Infinity
       if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
       return sortDir === 'asc' ? av - bv : bv - av
     })
@@ -74,7 +81,7 @@ export default function Page() {
     const avgHigh = withPrices.reduce((s,r) => s + Number(r.hoyeste_pris), 0) / (withPrices.length || 1)
     const coverage = RETAILERS.map(r => ({
       ...r,
-      count: data.filter(row => row[r.key] != null).length
+      count: data.filter(row => row[r.key] !== null && row[r.key] !== undefined).length
     }))
     return { avgLow, avgHigh, coverage, total: data.length }
   }, [data])
@@ -160,6 +167,11 @@ export default function Page() {
             <div className="spinner"></div>
             Henter priser...
           </div>
+        ) : error ? (
+          <div className="empty">
+            <div className="empty-icon">⚠</div>
+            <div className="empty-text">{error}</div>
+          </div>
         ) : sorted.length === 0 ? (
           <div className="empty">
             <div className="empty-icon">◎</div>
@@ -191,7 +203,7 @@ export default function Page() {
             </thead>
             <tbody>
               {sorted.map(row => {
-                const prices = RETAILERS.map(r => row[r.key]).filter(v => v != null)
+                const prices = RETAILERS.map(r => row[r.key]).filter(v => v !== null && v !== undefined)
                 const min = prices.length ? Math.min(...prices) : null
                 const max = prices.length ? Math.max(...prices) : null
                 const spread = min && max ? max - min : null
@@ -210,11 +222,11 @@ export default function Page() {
                     </td>
                     {RETAILERS.map(r => {
                       const val = row[r.key]
-                      const isMin = val != null && val == min && prices.length > 1
-                      const isMax = val != null && val == max && prices.length > 1 && min !== max
+                      const isMin = val !== null && val !== undefined && val === min && prices.length > 1
+                      const isMax = val !== null && val !== undefined && val === max && prices.length > 1 && min !== max
                       return (
                         <td key={r.key} className="td-price">
-                          {val == null ? (
+                          {val === null || val === undefined ? (
                             <span className="price-null">—</span>
                           ) : (
                             <span className={`price-val ${isMin ? 'price-lowest' : isMax ? 'price-highest' : ''}`}>
