@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import * as XLSX from 'xlsx'
 
 const RETAILERS = [
   { key: 'farmasiet',   label: 'Farmasiet',   color: '#2563EB' },
@@ -96,6 +97,29 @@ export default function Page() {
     return <span>{sortDir === 'asc' ? '↑' : '↓'}</span>
   }
 
+  function downloadExcel() {
+    const rows = sorted.map(row => {
+      const prices = RETAILERS.map(r => row[r.key]).filter(v => v != null)
+      const min = prices.length ? Math.min(...prices) : null
+      const max = prices.length ? Math.max(...prices) : null
+      const obj = {
+        Produkt: row.produkt,
+        Merke: row.merke,
+        Varenummer: row.varenummer,
+        Kategori: row.kategori,
+      }
+      RETAILERS.forEach(r => { obj[r.label] = row[r.key] ?? null })
+      obj['Laveste pris'] = min
+      obj['Høyeste pris'] = max
+      obj['Spread'] = min != null && max != null ? max - min : null
+      return obj
+    })
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Priser')
+    XLSX.writeFile(wb, `karo-priser-${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -134,6 +158,13 @@ export default function Page() {
         </div>
         <div className="controls-right">
           <span className="count-badge">{sorted.length} produkter</span>
+          <button
+            className="btn-excel"
+            onClick={downloadExcel}
+            disabled={!sorted.length}
+          >
+            Last ned Excel
+          </button>
         </div>
       </div>
 

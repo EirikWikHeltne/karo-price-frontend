@@ -106,6 +106,22 @@ h1, h2, h3, .syne { font-family: 'Syne', sans-serif; }
 .controls-right { margin-left: auto; display: flex; align-items: center; gap: 1rem; }
 .count-badge { font-size: 0.75rem; color: var(--text-muted); }
 
+.btn-excel {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem;
+  cursor: pointer;
+  background: var(--green-bg);
+  color: var(--green);
+  border-color: var(--green);
+  transition: all 0.1s;
+  white-space: nowrap;
+}
+.btn-excel:hover { background: var(--green); color: white; }
+.btn-excel:disabled { opacity: 0.4; cursor: default; background: var(--bg); color: var(--text-faint); border-color: var(--border); }
+
 .stats-bar {
   padding: 0.75rem 2rem;
   display: flex;
