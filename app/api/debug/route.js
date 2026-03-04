@@ -1,4 +1,6 @@
-import { supabaseServer } from '../../../lib/supabaseServer'
+import { createClient } from '@supabase/supabase-js'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const info = {
@@ -8,8 +10,17 @@ export async function GET() {
     }
   }
 
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return Response.json(info)
+  }
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  )
+
   // Test 1: list tables we can see
-  const { data: tables, error: tablesError } = await supabaseServer
+  const { data: tables, error: tablesError } = await supabase
     .from('prissammenligning')
     .select('*', { count: 'exact', head: true })
 
@@ -20,7 +31,7 @@ export async function GET() {
   }
 
   // Test 2: grab one raw row
-  const { data: sample, error: sampleError } = await supabaseServer
+  const { data: sample, error: sampleError } = await supabase
     .from('prissammenligning')
     .select('*')
     .limit(1)
