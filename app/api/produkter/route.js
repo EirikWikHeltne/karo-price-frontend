@@ -4,10 +4,6 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('Missing Supabase env vars:', {
-      url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-      key: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    })
     return Response.json({ error: 'Server misconfiguration: missing env vars' }, { status: 500 })
   }
 
@@ -16,34 +12,18 @@ export async function GET(request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY
   )
 
-  const { searchParams } = new URL(request.url)
-  const kategori = searchParams.get('kategori')
-  const search = searchParams.get('search')
-
-  let query = supabase
+  const { data, error } = await supabase
     .from('prissammenligning')
-    .select('*')
+    .select('id, produkt, merke, varenummer, kategori, sist_oppdatert')
     .order('kategori')
     .order('merke')
-
-  if (kategori && kategori !== 'alle') {
-    query = query.eq('kategori', kategori)
-  }
-
-  if (search) {
-    // Strip characters with special meaning in PostgREST filter syntax
-    const safe = search.replace(/[(),.\\*"]/g, '')
-    if (safe) {
-      query = query.or(`produkt.ilike.%${safe}%,merke.ilike.%${safe}%,varenummer.ilike.%${safe}%`)
-    }
-  }
-
-  const { data, error } = await query
+    .order('produkt')
 
   if (error) {
     console.error('Supabase error:', error)
     return Response.json({ error: 'Failed to fetch data' }, { status: 500 })
   }
+
   return Response.json(data, {
     headers: {
       'Cache-Control': 'no-store, no-cache, must-revalidate',

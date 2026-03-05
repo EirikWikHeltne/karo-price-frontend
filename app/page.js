@@ -43,7 +43,7 @@ export default function Page() {
       const params = new URLSearchParams()
       if (kategori !== 'alle') params.set('kategori', kategori)
       if (search) params.set('search', search)
-      const res = await fetch(`/api/priser?${params}`)
+      const res = await fetch(`/api/priser?${params}`, { cache: 'no-store' })
       if (!res.ok) {
         throw new Error(`Server error: ${res.status}`)
       }
@@ -139,7 +139,9 @@ export default function Page() {
         <div className="header-right">
           <nav className="header-nav">
             <span className="nav-link active">Tabell</span>
+            <Link href="/historikk" className="nav-link">Historikk</Link>
             <Link href="/grafer" className="nav-link">Grafer</Link>
+            <Link href="/produkter" className="nav-link">Produkter</Link>
           </nav>
           <div className="header-meta">
             <span className="header-dot"></span>
