@@ -267,9 +267,18 @@ td { padding: 0.6rem 0.75rem; font-size: 0.8rem; vertical-align: middle; }
 .chart-tooltip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
 @media (max-width: 768px) {
-  .header, .controls, .stats-bar, .table-wrap { padding-left: 1rem; padding-right: 1rem; }
-  .stats-bar { gap: 1.5rem; }
+  .header { padding: 0 1rem; }
+  .header-sub { display: none; }
+  .controls, .stats-bar, .table-wrap { padding-left: 1rem; padding-right: 1rem; }
+  .controls { gap: 0.5rem; }
+  .search-wrap { min-width: 100%; max-width: 100%; }
+  .filter-tabs { width: 100%; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .filter-tabs::-webkit-scrollbar { display: none; }
+  .brand-select { width: 100%; }
+  .stats-bar { gap: 1rem; padding: 0.75rem 1rem; }
   .controls-right { display: none; }
-  .charts-grid { grid-template-columns: 1fr; padding: 1rem; }
+  .charts-grid { grid-template-columns: 1fr; padding: 1rem; gap: 1rem; }
   .chart-card-wide { grid-column: 1; }
+  .chart-card { padding: 1rem 0.75rem; }
+  .footer { flex-direction: column; gap: 0.25rem; text-align: center; padding: 0.75rem 1rem; }
 }
