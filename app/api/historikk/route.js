@@ -2,6 +2,21 @@ import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
+const PAGE_SIZE = 1000
+
+async function fetchAllRows(query) {
+  const allRows = []
+  let from = 0
+  while (true) {
+    const { data, error } = await query.range(from, from + PAGE_SIZE - 1)
+    if (error) return { data: null, error }
+    allRows.push(...data)
+    if (data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
+  }
+  return { data: allRows, error: null }
+}
+
 export async function GET(request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return Response.json({ error: 'Server misconfiguration: missing env vars' }, { status: 500 })
@@ -38,7 +53,7 @@ export async function GET(request) {
     query = query.gte('dato', since.toISOString().slice(0, 10))
   }
 
-  const { data, error } = await query
+  const { data, error } = await fetchAllRows(query)
 
   if (error) {
     // If the table doesn't exist, return a helpful message

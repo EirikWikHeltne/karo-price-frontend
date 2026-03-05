@@ -19,13 +19,13 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY
   )
 
-  // Test 1: list tables we can see
-  const { data: tables, error: tablesError } = await supabase
+  // Test 1: check table and get exact row count
+  const { count, error: tablesError } = await supabase
     .from('prissammenligning')
     .select('*', { count: 'exact', head: true })
 
   info.tableCheck = {
-    count: tables,
+    totalRows: count,
     error: tablesError?.message || null,
     errorCode: tablesError?.code || null,
   }
