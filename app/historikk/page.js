@@ -1,0 +1,359 @@
+'use client'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import Link from 'next/link'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer,
+} from 'recharts'
+
+const RETAILERS = [
+  { key: 'farmasiet',   label: 'Farmasiet',   color: '#2563EB' },
+  { key: 'boots',       label: 'Boots',       color: '#E11D48' },
+  { key: 'vitusapotek', label: 'Vitusapotek', color: '#059669' },
+  { key: 'apotek1',     label: 'Apotek 1',    color: '#7C3AED' },
+]
+
+const TIME_RANGES = [
+  { label: '7 dager', value: 7 },
+  { label: '30 dager', value: 30 },
+  { label: '90 dager', value: 90 },
+  { label: 'Alt', value: 0 },
+]
+
+function fmt(val) {
+  if (val === null || val === undefined) return ''
+  return Number(val).toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+export default function HistorikkPage() {
+  const [products, setProducts] = useState([])
+  const [historyData, setHistoryData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [dager, setDager] = useState(30)
+  const [kategori, setKategori] = useState('alle')
+  const [search, setSearch] = useState('')
+  const [tableNotFound, setTableNotFound] = useState(false)
+
+  // Load product list
+  useEffect(() => {
+    fetch('/api/priser', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => {
+        setProducts(d || [])
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  // Fetch history when product is selected
+  const fetchHistory = useCallback(async (product) => {
+    if (!product) return
+    setHistoryLoading(true)
+    setTableNotFound(false)
+    try {
+      const params = new URLSearchParams()
+      if (product.varenummer) params.set('varenummer', product.varenummer)
+      else params.set('produkt', product.produkt)
+      if (dager > 0) params.set('dager', dager.toString())
+
+      const res = await fetch(`/api/historikk?${params}`, { cache: 'no-store' })
+      const json = await res.json()
+
+      if (json.code === 'TABLE_NOT_FOUND') {
+        setTableNotFound(true)
+        setHistoryData([])
+      } else if (Array.isArray(json)) {
+        setHistoryData(json)
+      } else {
+        setHistoryData([])
+      }
+    } catch {
+      setHistoryData([])
+    }
+    setHistoryLoading(false)
+  }, [dager])
+
+  useEffect(() => {
+    if (selectedProduct) fetchHistory(selectedProduct)
+  }, [selectedProduct, fetchHistory])
+
+  const categories = useMemo(() => {
+    return [...new Set(products.map(r => r.kategori).filter(Boolean))].sort()
+  }, [products])
+
+  const filteredProducts = useMemo(() => {
+    let d = products
+    if (kategori !== 'alle') d = d.filter(r => r.kategori === kategori)
+    if (search) {
+      const s = search.toLowerCase()
+      d = d.filter(r =>
+        (r.produkt || '').toLowerCase().includes(s) ||
+        (r.merke || '').toLowerCase().includes(s) ||
+        (r.varenummer || '').toLowerCase().includes(s)
+      )
+    }
+    return d
+  }, [products, kategori, search])
+
+  // Format history data for the chart
+  const chartData = useMemo(() => {
+    if (!historyData.length) return []
+    const byDate = {}
+    historyData.forEach(row => {
+      const date = row.dato?.slice(0, 10) || row.sist_oppdatert?.slice(0, 10)
+      if (!date) return
+      if (!byDate[date]) byDate[date] = { dato: date }
+      RETAILERS.forEach(r => {
+        if (row[r.key] != null) byDate[date][r.key] = Number(row[r.key])
+      })
+    })
+    return Object.values(byDate).sort((a, b) => a.dato.localeCompare(b.dato))
+  }, [historyData])
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null
+    return (
+      <div className="chart-tooltip">
+        <div className="chart-tooltip-label">
+          {new Date(label).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
+        </div>
+        {payload.map(p => (
+          <div key={p.name} className="chart-tooltip-row">
+            <span className="chart-tooltip-dot" style={{ background: p.color }}></span>
+            {p.name}: {fmt(p.value)} kr
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="app">
+      <header className="header">
+        <div className="header-left">
+          <div className="header-logo">KARO PRISER</div>
+          <div className="header-sub">Prisovervåking</div>
+        </div>
+        <div className="header-right">
+          <nav className="header-nav">
+            <Link href="/" className="nav-link">Tabell</Link>
+            <span className="nav-link active">Historikk</span>
+            <Link href="/grafer" className="nav-link">Grafer</Link>
+            <Link href="/produkter" className="nav-link">Produkter</Link>
+          </nav>
+        </div>
+      </header>
+
+      <div className="controls">
+        <div className="search-wrap">
+          <span className="search-icon">&#x1F50D;</span>
+          <input
+            className="search-input"
+            placeholder="Søk produkt, merke, varenr..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="filter-tabs">
+          {['alle', ...categories].map(k => (
+            <button
+              key={k}
+              className={`tab ${kategori === k ? 'active' : ''}`}
+              onClick={() => setKategori(k)}
+            >
+              {k === 'alle' ? 'Alle kategorier' : k}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Product list sidebar */}
+        <div className="historikk-sidebar">
+          <div className="historikk-sidebar-header">Velg produkt</div>
+          {loading ? (
+            <div className="loading"><div className="spinner"></div> Laster...</div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="empty" style={{ padding: '2rem' }}>
+              <div className="empty-text">Ingen produkter funnet</div>
+            </div>
+          ) : (
+            <div className="historikk-product-list">
+              {filteredProducts.map(p => (
+                <button
+                  key={p.id}
+                  className={`historikk-product-item ${selectedProduct?.id === p.id ? 'active' : ''}`}
+                  onClick={() => setSelectedProduct(p)}
+                >
+                  <div className="product-name">{p.produkt}</div>
+                  <div className="product-brand">{p.merke}</div>
+                  <div className="product-vn">{p.varenummer}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Chart area */}
+        <div className="historikk-main">
+          {!selectedProduct ? (
+            <div className="empty" style={{ padding: '4rem' }}>
+              <div className="empty-icon">&#9716;</div>
+              <div className="empty-text">Velg et produkt fra listen for å se prishistorikk</div>
+            </div>
+          ) : (
+            <>
+              <div className="historikk-chart-header">
+                <div>
+                  <h2 className="chart-title">{selectedProduct.produkt}</h2>
+                  <p className="chart-desc">{selectedProduct.merke} · {selectedProduct.varenummer} · {selectedProduct.kategori}</p>
+                </div>
+                <div className="filter-tabs">
+                  {TIME_RANGES.map(r => (
+                    <button
+                      key={r.value}
+                      className={`tab ${dager === r.value ? 'active' : ''}`}
+                      onClick={() => setDager(r.value)}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Current prices card */}
+              <div className="historikk-current-prices">
+                <div className="historikk-prices-label">Nåværende priser</div>
+                <div className="historikk-prices-grid">
+                  {RETAILERS.map(r => (
+                    <div key={r.key} className="historikk-price-card">
+                      <span className="retailer-dot" style={{ background: r.color }}></span>
+                      <span className="historikk-price-retailer">{r.label}</span>
+                      <span className="historikk-price-value">
+                        {selectedProduct[r.key] != null
+                          ? `${fmt(selectedProduct[r.key])} kr`
+                          : '—'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {tableNotFound ? (
+                <div className="chart-card" style={{ marginTop: '1rem' }}>
+                  <div className="empty" style={{ padding: '3rem' }}>
+                    <div className="empty-icon">&#128202;</div>
+                    <div className="empty-text">Prishistorikk er ikke tilgjengelig ennå</div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                      Tabellen &laquo;prishistorikk&raquo; finnes ikke i databasen. Historiske prisdata vil vises her når tabellen er opprettet og fylt med data.
+                    </p>
+                  </div>
+                </div>
+              ) : historyLoading ? (
+                <div className="loading" style={{ padding: '4rem' }}>
+                  <div className="spinner"></div> Henter prishistorikk...
+                </div>
+              ) : chartData.length === 0 ? (
+                <div className="chart-card" style={{ marginTop: '1rem' }}>
+                  <div className="empty" style={{ padding: '3rem' }}>
+                    <div className="empty-icon">&#128202;</div>
+                    <div className="empty-text">Ingen historiske data for dette produktet</div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                      Det finnes ingen prishistorikk for den valgte perioden.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="chart-card" style={{ marginTop: '1rem' }}>
+                  <h3 className="chart-title">Prisutvikling</h3>
+                  <p className="chart-desc">{chartData.length} datapunkter i perioden</p>
+                  <ResponsiveContainer width="100%" height={350}>
+                    <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis
+                        dataKey="dato"
+                        tick={{ fontSize: 10, fontFamily: 'DM Mono' }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={v => new Date(v).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fontFamily: 'DM Mono' }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={55}
+                        tickFormatter={v => `${v} kr`}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend
+                        wrapperStyle={{ fontSize: '0.75rem', fontFamily: 'DM Mono' }}
+                      />
+                      {RETAILERS.map(r => (
+                        <Line
+                          key={r.key}
+                          type="monotone"
+                          dataKey={r.key}
+                          name={r.label}
+                          stroke={r.color}
+                          strokeWidth={2}
+                          dot={{ r: 3 }}
+                          activeDot={{ r: 5 }}
+                          connectNulls
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* History table */}
+              {chartData.length > 0 && (
+                <div className="chart-card" style={{ marginTop: '1rem' }}>
+                  <h3 className="chart-title">Prisdata</h3>
+                  <div className="table-wrap" style={{ padding: 0 }}>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Dato</th>
+                          {RETAILERS.map(r => (
+                            <th key={r.key} style={{ textAlign: 'right' }}>
+                              <div className="retailer-header" style={{ justifyContent: 'flex-end' }}>
+                                <span className="retailer-dot" style={{ background: r.color }}></span>
+                                {r.label}
+                              </div>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...chartData].reverse().map(row => (
+                          <tr key={row.dato}>
+                            <td>{new Date(row.dato).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                            {RETAILERS.map(r => (
+                              <td key={r.key} className="td-price">
+                                {row[r.key] != null
+                                  ? <span className="price-val">{fmt(row[r.key])}</span>
+                                  : <span className="price-null">—</span>}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <footer className="footer">
+        <span>Karo Healthcare Norway · Prisdata fra Farmasiet, Boots, Vitusapotek, Apotek 1</span>
+        <span>Oppdateres daglig kl. 03:00</span>
+      </footer>
+    </div>
+  )
+}

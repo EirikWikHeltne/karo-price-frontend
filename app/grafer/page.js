@@ -25,7 +25,7 @@ export default function GraferPage() {
   const [merke, setMerke]     = useState('alle')
 
   useEffect(() => {
-    fetch('/api/priser')
+    fetch('/api/priser', { cache: 'no-store' })
       .then(r => r.json())
       .then(d => { setData(d || []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -126,7 +126,9 @@ export default function GraferPage() {
         <div className="header-right">
           <nav className="header-nav">
             <Link href="/" className="nav-link">Tabell</Link>
+            <Link href="/historikk" className="nav-link">Historikk</Link>
             <span className="nav-link active">Grafer</span>
+            <Link href="/produkter" className="nav-link">Produkter</Link>
           </nav>
         </div>
       </header>
