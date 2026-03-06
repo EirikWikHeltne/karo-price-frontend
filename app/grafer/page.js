@@ -3,7 +3,8 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, Cell, PieChart, Pie,
+  ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area,
+  ScatterChart, Scatter, ZAxis,
 } from 'recharts'
 
 const RETAILERS = [
@@ -23,6 +24,7 @@ export default function GraferPage() {
   const [loading, setLoading] = useState(true)
   const [kategori, setKategori] = useState('alle')
   const [merke, setMerke]     = useState('alle')
+  const [mobileNav, setMobileNav] = useState(false)
 
   useEffect(() => {
     fetch('/api/priser', { cache: 'no-store' })
@@ -48,7 +50,7 @@ export default function GraferPage() {
     return d
   }, [data, kategori, merke])
 
-  // Chart 1: Average price per retailer — one bar group per retailer
+  // Chart 1: Average price per retailer
   const avgByRetailer = useMemo(() => {
     return RETAILERS.map(r => {
       const vals = filtered.map(row => row[r.key]).filter(v => v != null).map(Number)
@@ -92,6 +94,36 @@ export default function GraferPage() {
       .slice(0, 10)
   }, [filtered])
 
+  // Chart 4: Price coverage heatmap data
+  const coverageData = useMemo(() => {
+    const cats = [...new Set(filtered.map(r => r.kategori).filter(Boolean))].sort()
+    return cats.map(cat => {
+      const catRows = filtered.filter(r => r.kategori === cat)
+      const result = { kategori: cat, total: catRows.length }
+      RETAILERS.forEach(r => {
+        result[r.key] = catRows.filter(row => row[r.key] != null).length
+        result[`${r.key}Pct`] = catRows.length ? Math.round(catRows.filter(row => row[r.key] != null).length / catRows.length * 100) : 0
+      })
+      return result
+    })
+  }, [filtered])
+
+  // Chart 5: Min vs Max scatter
+  const scatterData = useMemo(() => {
+    return filtered
+      .map(row => {
+        const prices = RETAILERS.map(r => row[r.key]).filter(v => v != null).map(Number)
+        if (prices.length < 2) return null
+        return {
+          min: Math.min(...prices),
+          max: Math.max(...prices),
+          name: row.produkt,
+          spread: +(Math.max(...prices) - Math.min(...prices)).toFixed(2),
+        }
+      })
+      .filter(Boolean)
+  }, [filtered])
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
     return (
@@ -123,12 +155,15 @@ export default function GraferPage() {
           <div className="header-logo">KARO PRISER</div>
           <div className="header-sub">Prisovervåking</div>
         </div>
-        <div className="header-right">
+        <button className="mobile-nav-toggle" onClick={() => setMobileNav(!mobileNav)} aria-label="Meny">
+          <span></span><span></span><span></span>
+        </button>
+        <div className={`header-right ${mobileNav ? 'open' : ''}`}>
           <nav className="header-nav">
-            <Link href="/" className="nav-link">Tabell</Link>
-            <Link href="/historikk" className="nav-link">Historikk</Link>
+            <Link href="/" className="nav-link" onClick={() => setMobileNav(false)}>Tabell</Link>
+            <Link href="/historikk" className="nav-link" onClick={() => setMobileNav(false)}>Historikk</Link>
             <span className="nav-link active">Grafer</span>
-            <Link href="/produkter" className="nav-link">Produkter</Link>
+            <Link href="/produkter" className="nav-link" onClick={() => setMobileNav(false)}>Produkter</Link>
           </nav>
         </div>
       </header>
@@ -217,6 +252,48 @@ export default function GraferPage() {
               </PieChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Coverage per category per retailer */}
+          {coverageData.length > 0 && (
+            <div className="chart-card">
+              <h3 className="chart-title">Prisdekning per kategori</h3>
+              <p className="chart-desc">Andel produkter med pris hos hver kjede (%)</p>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={coverageData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="kategori" tick={{ fontSize: 10, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} width={40} domain={[0, 100]} tickFormatter={v => `${v}%`} />
+                  <Tooltip formatter={(v) => `${v}%`} labelStyle={{ fontFamily: 'DM Mono' }} />
+                  <Legend wrapperStyle={{ fontSize: '0.7rem', fontFamily: 'DM Mono' }} />
+                  {RETAILERS.map(r => (
+                    <Bar key={r.key} dataKey={`${r.key}Pct`} name={r.label} fill={r.color} radius={[2, 2, 0, 0]} opacity={0.8} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Min vs Max scatter */}
+          {scatterData.length > 0 && (
+            <div className="chart-card">
+              <h3 className="chart-title">Laveste vs. høyeste pris</h3>
+              <p className="chart-desc">Hvert punkt er et produkt — avstand fra linjen viser prisforskjell</p>
+              <ResponsiveContainer width="100%" height={300}>
+                <ScatterChart margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis type="number" dataKey="min" name="Laveste" tick={{ fontSize: 10, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} tickFormatter={v => `${v} kr`} />
+                  <YAxis type="number" dataKey="max" name="Høyeste" tick={{ fontSize: 10, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} width={55} tickFormatter={v => `${v} kr`} />
+                  <ZAxis type="number" dataKey="spread" range={[30, 200]} name="Spread" />
+                  <Tooltip
+                    formatter={(v, name) => [`${fmt(v)} kr`, name]}
+                    labelFormatter={() => ''}
+                    contentStyle={{ fontFamily: 'DM Mono', fontSize: '0.75rem' }}
+                  />
+                  <Scatter data={scatterData} fill="var(--accent)" fillOpacity={0.4} stroke="var(--accent)" strokeWidth={1} />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+          )}
 
           <div className="chart-card chart-card-wide">
             <h3 className="chart-title">Topp 10 største prisforskjeller</h3>

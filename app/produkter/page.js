@@ -18,6 +18,7 @@ export default function ProdukterPage() {
   const [kategori, setKategori] = useState('alle')
   const [sortCol, setSortCol]   = useState('kategori')
   const [sortDir, setSortDir]   = useState('asc')
+  const [mobileNav, setMobileNav] = useState(false)
 
   useEffect(() => {
     fetch('/api/produkter', { cache: 'no-store' })
@@ -99,11 +100,14 @@ export default function ProdukterPage() {
           <div className="header-logo">KARO PRISER</div>
           <div className="header-sub">Prisovervåking</div>
         </div>
-        <div className="header-right">
+        <button className="mobile-nav-toggle" onClick={() => setMobileNav(!mobileNav)} aria-label="Meny">
+          <span></span><span></span><span></span>
+        </button>
+        <div className={`header-right ${mobileNav ? 'open' : ''}`}>
           <nav className="header-nav">
-            <Link href="/" className="nav-link">Tabell</Link>
-            <Link href="/historikk" className="nav-link">Historikk</Link>
-            <Link href="/grafer" className="nav-link">Grafer</Link>
+            <Link href="/" className="nav-link" onClick={() => setMobileNav(false)}>Tabell</Link>
+            <Link href="/historikk" className="nav-link" onClick={() => setMobileNav(false)}>Historikk</Link>
+            <Link href="/grafer" className="nav-link" onClick={() => setMobileNav(false)}>Grafer</Link>
             <span className="nav-link active">Produkter</span>
           </nav>
         </div>
