@@ -35,6 +35,8 @@ export default function HistorikkPage() {
   const [kategori, setKategori] = useState('alle')
   const [search, setSearch] = useState('')
   const [tableNotFound, setTableNotFound] = useState(false)
+  const [mobileNav, setMobileNav] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   // Load product list
   useEffect(() => {
@@ -129,6 +131,14 @@ export default function HistorikkPage() {
     )
   }
 
+  function handleProductSelect(p) {
+    setSelectedProduct(p)
+    // On mobile, collapse sidebar after selection
+    if (window.innerWidth <= 768) {
+      setSidebarOpen(false)
+    }
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -136,12 +146,15 @@ export default function HistorikkPage() {
           <div className="header-logo">KARO PRISER</div>
           <div className="header-sub">Prisovervåking</div>
         </div>
-        <div className="header-right">
+        <button className="mobile-nav-toggle" onClick={() => setMobileNav(!mobileNav)} aria-label="Meny">
+          <span></span><span></span><span></span>
+        </button>
+        <div className={`header-right ${mobileNav ? 'open' : ''}`}>
           <nav className="header-nav">
-            <Link href="/" className="nav-link">Tabell</Link>
+            <Link href="/" className="nav-link" onClick={() => setMobileNav(false)}>Tabell</Link>
             <span className="nav-link active">Historikk</span>
-            <Link href="/grafer" className="nav-link">Grafer</Link>
-            <Link href="/produkter" className="nav-link">Produkter</Link>
+            <Link href="/grafer" className="nav-link" onClick={() => setMobileNav(false)}>Grafer</Link>
+            <Link href="/produkter" className="nav-link" onClick={() => setMobileNav(false)}>Produkter</Link>
           </nav>
         </div>
       </header>
@@ -169,30 +182,39 @@ export default function HistorikkPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: 'row' }}>
         {/* Product list sidebar */}
-        <div className="historikk-sidebar">
-          <div className="historikk-sidebar-header">Velg produkt</div>
-          {loading ? (
-            <div className="loading"><div className="spinner"></div> Laster...</div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="empty" style={{ padding: '2rem' }}>
-              <div className="empty-text">Ingen produkter funnet</div>
-            </div>
-          ) : (
-            <div className="historikk-product-list">
-              {filteredProducts.map(p => (
-                <button
-                  key={p.id}
-                  className={`historikk-product-item ${selectedProduct?.id === p.id ? 'active' : ''}`}
-                  onClick={() => setSelectedProduct(p)}
-                >
-                  <div className="product-name">{p.produkt}</div>
-                  <div className="product-brand">{p.merke}</div>
-                  <div className="product-vn">{p.varenummer}</div>
-                </button>
-              ))}
-            </div>
+        <div className={`historikk-sidebar ${!sidebarOpen ? 'collapsed' : ''}`}>
+          <button className="historikk-sidebar-header" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ cursor: 'pointer', background: 'none', border: 'none', width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontFamily: 'Syne, sans-serif', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-faint)' }}>
+              Velg produkt ({filteredProducts.length})
+            </span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)' }}>{sidebarOpen ? '▲' : '▼'}</span>
+          </button>
+          {sidebarOpen && (
+            <>
+              {loading ? (
+                <div className="loading"><div className="spinner"></div> Laster...</div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="empty" style={{ padding: '2rem' }}>
+                  <div className="empty-text">Ingen produkter funnet</div>
+                </div>
+              ) : (
+                <div className="historikk-product-list">
+                  {filteredProducts.map(p => (
+                    <button
+                      key={p.id}
+                      className={`historikk-product-item ${selectedProduct?.id === p.id ? 'active' : ''}`}
+                      onClick={() => handleProductSelect(p)}
+                    >
+                      <div className="product-name">{p.produkt}</div>
+                      <div className="product-brand">{p.merke}</div>
+                      <div className="product-vn">{p.varenummer}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -208,7 +230,7 @@ export default function HistorikkPage() {
               <div className="historikk-chart-header">
                 <div>
                   <h2 className="chart-title">{selectedProduct.produkt}</h2>
-                  <p className="chart-desc">{selectedProduct.merke} · {selectedProduct.varenummer} · {selectedProduct.kategori}</p>
+                  <p className="chart-desc">{selectedProduct.merke} &middot; {selectedProduct.varenummer} &middot; {selectedProduct.kategori}</p>
                 </div>
                 <div className="filter-tabs">
                   {TIME_RANGES.map(r => (
@@ -321,7 +343,7 @@ export default function HistorikkPage() {
                             <th key={r.key} style={{ textAlign: 'right' }}>
                               <div className="retailer-header" style={{ justifyContent: 'flex-end' }}>
                                 <span className="retailer-dot" style={{ background: r.color }}></span>
-                                {r.label}
+                                <span className="retailer-label">{r.label}</span>
                               </div>
                             </th>
                           ))}
@@ -351,7 +373,7 @@ export default function HistorikkPage() {
       </div>
 
       <footer className="footer">
-        <span>Karo Healthcare Norway · Prisdata fra Farmasiet, Boots, Vitusapotek, Apotek 1</span>
+        <span>Karo Healthcare Norway &middot; Prisdata fra Farmasiet, Boots, Vitusapotek, Apotek 1</span>
         <span>Oppdateres daglig kl. 03:00</span>
       </footer>
     </div>
