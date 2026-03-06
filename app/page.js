@@ -70,9 +70,19 @@ export default function Page() {
       }
       const json = await res.json()
       setData(json || [])
-      if (json?.length) {
-        const dates = json.map(r => r.sist_oppdatert).filter(Boolean).sort()
-        if (dates.length) setLastUpdated(new Date(dates[dates.length - 1]))
+      // Fetch latest scan date from prishistorikk (more accurate than sist_oppdatert)
+      try {
+        const updRes = await fetch('/api/siste-oppdatering', { cache: 'no-store' })
+        if (updRes.ok) {
+          const { dato } = await updRes.json()
+          if (dato) setLastUpdated(new Date(dato + 'T12:00:00'))
+        }
+      } catch (_) {
+        // Fall back to sist_oppdatert from price data
+        if (json?.length) {
+          const dates = json.map(r => r.sist_oppdatert).filter(Boolean).sort()
+          if (dates.length) setLastUpdated(new Date(dates[dates.length - 1]))
+        }
       }
     } catch(e) {
       console.error(e)
