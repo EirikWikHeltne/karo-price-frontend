@@ -306,6 +306,7 @@ export default function Page() {
             <Link href="/historikk" className="nav-link" onClick={() => setMobileNav(false)}>Historikk</Link>
             <Link href="/grafer" className="nav-link" onClick={() => setMobileNav(false)}>Grafer</Link>
             <Link href="/produkter" className="nav-link" onClick={() => setMobileNav(false)}>Produkter</Link>
+            <Link href="/sammenlign" className="nav-link" onClick={() => setMobileNav(false)}>Sammenlign</Link>
           </nav>
           <div className="header-meta">
             <span className="header-dot"></span>

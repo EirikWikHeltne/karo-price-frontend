@@ -109,6 +109,7 @@ export default function ProdukterPage() {
             <Link href="/historikk" className="nav-link" onClick={() => setMobileNav(false)}>Historikk</Link>
             <Link href="/grafer" className="nav-link" onClick={() => setMobileNav(false)}>Grafer</Link>
             <span className="nav-link active">Produkter</span>
+            <Link href="/sammenlign" className="nav-link" onClick={() => setMobileNav(false)}>Sammenlign</Link>
           </nav>
         </div>
       </header>

@@ -155,6 +155,7 @@ export default function HistorikkPage() {
             <span className="nav-link active">Historikk</span>
             <Link href="/grafer" className="nav-link" onClick={() => setMobileNav(false)}>Grafer</Link>
             <Link href="/produkter" className="nav-link" onClick={() => setMobileNav(false)}>Produkter</Link>
+            <Link href="/sammenlign" className="nav-link" onClick={() => setMobileNav(false)}>Sammenlign</Link>
           </nav>
         </div>
       </header>

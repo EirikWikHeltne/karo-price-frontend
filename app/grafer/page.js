@@ -164,6 +164,7 @@ export default function GraferPage() {
             <Link href="/historikk" className="nav-link" onClick={() => setMobileNav(false)}>Historikk</Link>
             <span className="nav-link active">Grafer</span>
             <Link href="/produkter" className="nav-link" onClick={() => setMobileNav(false)}>Produkter</Link>
+            <Link href="/sammenlign" className="nav-link" onClick={() => setMobileNav(false)}>Sammenlign</Link>
           </nav>
         </div>
       </header>

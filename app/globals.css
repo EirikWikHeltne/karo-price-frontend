@@ -410,6 +410,169 @@ td { padding: 0.6rem 0.75rem; font-size: 0.8rem; vertical-align: middle; }
   font-size: 0.9rem;
 }
 
+/* ---- COMPARE / SAMMENLIGN ---- */
+.compare-intro {
+  padding: 1.5rem 2rem 0.5rem;
+}
+.compare-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.compare-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.compare-search-section {
+  padding: 0.75rem 2rem;
+  position: relative;
+}
+.compare-search-wrap {
+  max-width: 480px;
+}
+.compare-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 2rem;
+  right: 2rem;
+  max-width: 480px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  z-index: 50;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.compare-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  transition: background 0.1s;
+}
+.compare-dropdown-item:last-child { border-bottom: none; }
+.compare-dropdown-item:hover { background: var(--bg); }
+.compare-dropdown-name { font-size: 0.8rem; font-weight: 500; color: var(--text); }
+.compare-dropdown-meta { font-size: 0.65rem; color: var(--text-muted); margin-top: 2px; }
+
+.compare-totals {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  padding: 1rem 2rem;
+}
+.compare-total-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  position: relative;
+  transition: border-color 0.15s;
+}
+.compare-total-cheapest {
+  border-color: var(--green);
+  background: var(--green-bg);
+}
+.compare-cheapest-badge {
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  background: var(--green);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-family: 'Syne', sans-serif;
+}
+.compare-total-retailer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+.compare-total-price {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.compare-total-cheapest .compare-total-price { color: var(--green); }
+.compare-total-missing {
+  font-size: 0.65rem;
+  color: var(--amber);
+  margin-top: 0.3rem;
+}
+.compare-total-count {
+  font-size: 0.65rem;
+  color: var(--text-faint);
+  margin-top: 0.15rem;
+}
+
+.compare-savings {
+  margin: 0 2rem;
+  padding: 0.7rem 1rem;
+  background: var(--green-bg);
+  border: 1px solid var(--green);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--green);
+}
+
+.compare-basket-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem 0;
+}
+.compare-basket-count {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.compare-clear-btn {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--red);
+  border-radius: 3px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7rem;
+  cursor: pointer;
+  background: var(--red-bg);
+  color: var(--red);
+  transition: all 0.1s;
+}
+.compare-clear-btn:hover { background: var(--red); color: white; }
+
+.compare-remove-btn {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.1s;
+}
+.compare-remove-btn:hover { color: var(--red); }
+
+.compare-totals-row {
+  border-top: 2px solid var(--border-strong);
+  background: var(--surface);
+}
+.compare-totals-row td { font-weight: 700; }
+
 /* ==== MOBILE ==== */
 @media (max-width: 768px) {
   /* Header */
@@ -467,6 +630,15 @@ td { padding: 0.6rem 0.75rem; font-size: 0.8rem; vertical-align: middle; }
 
   /* Footer */
   .footer { flex-direction: column; gap: 0.25rem; text-align: center; padding: 0.75rem 1rem; }
+
+  /* Compare */
+  .compare-intro { padding: 1rem 1rem 0.5rem; }
+  .compare-search-section { padding: 0.75rem 1rem; }
+  .compare-dropdown { left: 1rem; right: 1rem; }
+  .compare-totals { grid-template-columns: 1fr 1fr; gap: 0.75rem; padding: 1rem; }
+  .compare-savings { margin: 0 1rem; }
+  .compare-basket-header { padding: 1rem 1rem 0; }
+  .compare-total-price { font-size: 1.1rem; }
 
   /* Historikk */
   .historikk-sidebar {
