@@ -183,7 +183,7 @@ export default function HistorikkPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: 'row' }}>
+      <div className="historikk-layout">
         {/* Product list sidebar */}
         <div className={`historikk-sidebar ${!sidebarOpen ? 'collapsed' : ''}`}>
           <button className="historikk-sidebar-header" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ cursor: 'pointer', background: 'none', border: 'none', width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
