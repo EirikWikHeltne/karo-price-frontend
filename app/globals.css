@@ -72,6 +72,7 @@ h1, h2, h3, .syne { font-family: 'Syne', sans-serif; }
 .nav-link:hover { color: rgba(255,255,255,0.7); }
 .nav-link.active { color: white; background: rgba(255,255,255,0.1); }
 .header-meta { font-size: 0.75rem; color: rgba(255,255,255,0.4); }
+.header-meta-mobile { display: none; }
 .header-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #4ADE80; margin-right: 6px; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
@@ -327,6 +328,12 @@ td { padding: 0.6rem 0.75rem; font-size: 0.8rem; vertical-align: middle; }
 .chart-tooltip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
 /* ---- Historikk page ---- */
+.historikk-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  flex-direction: row;
+}
 .historikk-sidebar {
   width: 320px;
   min-width: 320px;
@@ -616,17 +623,24 @@ td { padding: 0.6rem 0.75rem; font-size: 0.8rem; vertical-align: middle; }
   .chart-card-wide { grid-column: 1; }
   .chart-card { padding: 1rem 0.75rem; }
 
-  /* Table - mobile card layout */
-  .table-wrap { padding: 0 0 1rem; }
-  table { margin-top: 0; }
-  thead .th-category,
-  thead .th-price { display: none; }
+  /* Table - horizontal scroll on mobile so all retailer columns + labels are visible */
+  .table-wrap { padding: 0 0 1rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { margin-top: 0; min-width: 680px; }
+  thead .th-category { display: none; }
   thead th { font-size: 0.6rem; padding: 0.4rem 0.5rem; }
   td { padding: 0.5rem; font-size: 0.75rem; }
-  .td-product { max-width: none; }
-  .td-price { min-width: 60px; }
+  .td-product { max-width: 140px; }
+  .td-price { min-width: 80px; }
   .td-diff { min-width: 60px; }
-  .retailer-label { display: none; }
+  .retailer-label { font-size: 0.65rem; }
+
+  /* Last-updated date visible on mobile */
+  .header-meta-mobile {
+    display: block;
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.45);
+    padding: 0 0 0.4rem 0;
+  }
 
   /* Footer */
   .footer { flex-direction: column; gap: 0.25rem; text-align: center; padding: 0.75rem 1rem; }
@@ -641,16 +655,17 @@ td { padding: 0.6rem 0.75rem; font-size: 0.8rem; vertical-align: middle; }
   .compare-total-price { font-size: 1.1rem; }
 
   /* Historikk */
+  .historikk-layout { flex-direction: column; overflow: visible; }
   .historikk-sidebar {
     width: 100%;
     min-width: 100%;
-    max-height: 220px;
+    max-height: 260px;
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
-  .historikk-main { padding: 1rem; }
+  .historikk-main { padding: 1rem; overflow-y: visible; }
   .historikk-chart-header { flex-direction: column; }
-  .historikk-prices-grid { gap: 0.75rem; }
+  .historikk-prices-grid { gap: 0.75rem; flex-wrap: wrap; }
 }
 
 /* Small mobile (< 480px) */

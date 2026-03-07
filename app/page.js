@@ -297,6 +297,12 @@ export default function Page() {
           <div className="header-logo">KARO PRISER</div>
           <div className="header-sub">Prisovervåking</div>
         </div>
+        {lastUpdated && (
+          <div className="header-meta-mobile">
+            <span className="header-dot"></span>
+            {`Oppdatert ${lastUpdated.toLocaleDateString('nb-NO', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}`}
+          </div>
+        )}
         <button className="mobile-nav-toggle" onClick={() => setMobileNav(!mobileNav)} aria-label="Meny">
           <span></span><span></span><span></span>
         </button>
