@@ -13,18 +13,28 @@ export async function GET() {
   )
 
   // Get the most recent scan date from prishistorikk
+  let dato = null
+
   const { data, error } = await supabase
     .from('prishistorikk')
     .select('dato')
     .order('dato', { ascending: false })
     .limit(1)
 
-  if (error) {
-    console.error('Supabase error:', error)
-    return Response.json({ error: 'Failed to fetch latest scan date' }, { status: 500 })
-  }
+  if (!error && data?.[0]?.dato) {
+    dato = data[0].dato
+  } else {
+    // Fall back to sist_oppdatert from prissammenligning
+    const { data: fallback, error: fbErr } = await supabase
+      .from('prissammenligning')
+      .select('sist_oppdatert')
+      .order('sist_oppdatert', { ascending: false })
+      .limit(1)
 
-  const dato = data?.[0]?.dato ?? null
+    if (!fbErr && fallback?.[0]?.sist_oppdatert) {
+      dato = fallback[0].sist_oppdatert.slice(0, 10)
+    }
+  }
 
   return Response.json({ dato }, {
     headers: {
