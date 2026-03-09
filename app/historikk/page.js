@@ -37,16 +37,29 @@ export default function HistorikkPage() {
   const [tableNotFound, setTableNotFound] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [lastUpdated, setLastUpdated] = useState(null)
 
-  // Load product list
+  // Load product list and last updated date
   useEffect(() => {
     fetch('/api/priser', { cache: 'no-store' })
       .then(r => r.json())
       .then(d => {
         setProducts(d || [])
         setLoading(false)
+        // Fall back to sist_oppdatert from product data if siste-oppdatering fails
+        if (!lastUpdated && d?.length) {
+          const dates = d.map(r => r.sist_oppdatert).filter(Boolean).sort()
+          if (dates.length) setLastUpdated(new Date(dates[dates.length - 1]))
+        }
       })
       .catch(() => setLoading(false))
+
+    fetch('/api/siste-oppdatering', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(({ dato }) => {
+        if (dato) setLastUpdated(new Date(dato + 'T12:00:00'))
+      })
+      .catch(() => {})
   }, [])
 
   // Fetch history when product is selected
@@ -145,6 +158,11 @@ export default function HistorikkPage() {
         <div className="header-left">
           <div className="header-logo">KARO PRISER</div>
           <div className="header-sub">Prisovervåking</div>
+          {lastUpdated && (
+            <div className="header-meta" style={{ fontSize: '0.65rem', color: 'var(--text-faint)', marginTop: '0.15rem' }}>
+              Oppdatert {lastUpdated.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })} {lastUpdated.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
         </div>
         <button className="mobile-nav-toggle" onClick={() => setMobileNav(!mobileNav)} aria-label="Meny">
           <span></span><span></span><span></span>

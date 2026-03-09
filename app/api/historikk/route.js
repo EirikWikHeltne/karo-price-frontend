@@ -56,8 +56,41 @@ export async function GET(request) {
   const { data, error } = await fetchAllRows(query)
 
   if (error) {
-    // If the table doesn't exist, return a helpful message
+    // If the table doesn't exist, fall back to current prices from prissammenligning
     if (error.code === '42P01' || error.message?.includes('does not exist')) {
+      try {
+        let fallbackQuery = supabase
+          .from('prissammenligning')
+          .select('varenummer, produkt, farmasiet, boots, vitusapotek, apotek1, sist_oppdatert')
+
+        if (varenummer) {
+          fallbackQuery = fallbackQuery.eq('varenummer', varenummer)
+        } else if (produkt) {
+          const safe = produkt.replace(/[(),.\\*"]/g, '')
+          if (safe) fallbackQuery = fallbackQuery.ilike('produkt', `%${safe}%`)
+        }
+
+        const { data: fbData } = await fallbackQuery
+        if (fbData?.length) {
+          // Convert current prices to history-like format
+          const rows = fbData.map(row => ({
+            dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+            varenummer: row.varenummer,
+            produkt: row.produkt,
+            farmasiet: row.farmasiet,
+            boots: row.boots,
+            vitusapotek: row.vitusapotek,
+            apotek1: row.apotek1,
+          }))
+          return Response.json(rows, {
+            headers: {
+              'Cache-Control': 'no-store, no-cache, must-revalidate',
+              'Pragma': 'no-cache',
+            },
+          })
+        }
+      } catch (_) { /* ignore fallback errors */ }
+
       return Response.json(
         { error: 'Prishistorikk-tabellen finnes ikke ennå', code: 'TABLE_NOT_FOUND' },
         {
@@ -68,6 +101,39 @@ export async function GET(request) {
     }
     console.error('Supabase error:', error)
     return Response.json({ error: 'Failed to fetch data' }, { status: 500 })
+  }
+
+  // If prishistorikk exists but has no data for this product, fall back to prissammenligning
+  if (!data?.length) {
+    let fallbackQuery = supabase
+      .from('prissammenligning')
+      .select('varenummer, produkt, farmasiet, boots, vitusapotek, apotek1, sist_oppdatert')
+
+    if (varenummer) {
+      fallbackQuery = fallbackQuery.eq('varenummer', varenummer)
+    } else if (produkt) {
+      const safe = produkt.replace(/[(),.\\*"]/g, '')
+      if (safe) fallbackQuery = fallbackQuery.ilike('produkt', `%${safe}%`)
+    }
+
+    const { data: fbData } = await fallbackQuery
+    if (fbData?.length) {
+      const rows = fbData.map(row => ({
+        dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        varenummer: row.varenummer,
+        produkt: row.produkt,
+        farmasiet: row.farmasiet,
+        boots: row.boots,
+        vitusapotek: row.vitusapotek,
+        apotek1: row.apotek1,
+      }))
+      return Response.json(rows, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      })
+    }
   }
 
   return Response.json(data, {
