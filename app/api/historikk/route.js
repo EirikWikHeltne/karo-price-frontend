@@ -61,7 +61,7 @@ export async function GET(request) {
       try {
         let fallbackQuery = supabase
           .from('prissammenligning')
-          .select('varenummer, produkt, farmasiet, boots, vitusapotek, apotek1, sist_oppdatert')
+          .select('*')
 
         if (varenummer) {
           fallbackQuery = fallbackQuery.eq('varenummer', varenummer)
@@ -73,15 +73,18 @@ export async function GET(request) {
         const { data: fbData } = await fallbackQuery
         if (fbData?.length) {
           // Convert current prices to history-like format
-          const rows = fbData.map(row => ({
-            dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-            varenummer: row.varenummer,
-            produkt: row.produkt,
-            farmasiet: row.farmasiet,
-            boots: row.boots,
-            vitusapotek: row.vitusapotek,
-            apotek1: row.apotek1,
-          }))
+          const NON_PRICE_COLS = new Set(['id', 'produkt', 'merke', 'varenummer', 'kategori', 'sist_oppdatert', 'laveste_pris', 'hoyeste_pris'])
+          const rows = fbData.map(row => {
+            const entry = {
+              dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+              varenummer: row.varenummer,
+              produkt: row.produkt,
+            }
+            Object.keys(row).forEach(k => {
+              if (!NON_PRICE_COLS.has(k)) entry[k] = row[k]
+            })
+            return entry
+          })
           return Response.json(rows, {
             headers: {
               'Cache-Control': 'no-store, no-cache, must-revalidate',
@@ -107,7 +110,7 @@ export async function GET(request) {
   if (!data?.length) {
     let fallbackQuery = supabase
       .from('prissammenligning')
-      .select('varenummer, produkt, farmasiet, boots, vitusapotek, apotek1, sist_oppdatert')
+      .select('*')
 
     if (varenummer) {
       fallbackQuery = fallbackQuery.eq('varenummer', varenummer)
@@ -118,15 +121,18 @@ export async function GET(request) {
 
     const { data: fbData } = await fallbackQuery
     if (fbData?.length) {
-      const rows = fbData.map(row => ({
-        dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-        varenummer: row.varenummer,
-        produkt: row.produkt,
-        farmasiet: row.farmasiet,
-        boots: row.boots,
-        vitusapotek: row.vitusapotek,
-        apotek1: row.apotek1,
-      }))
+      const NON_PRICE_COLS = new Set(['id', 'produkt', 'merke', 'varenummer', 'kategori', 'sist_oppdatert', 'laveste_pris', 'hoyeste_pris'])
+      const rows = fbData.map(row => {
+        const entry = {
+          dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+          varenummer: row.varenummer,
+          produkt: row.produkt,
+        }
+        Object.keys(row).forEach(k => {
+          if (!NON_PRICE_COLS.has(k)) entry[k] = row[k]
+        })
+        return entry
+      })
       return Response.json(rows, {
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate',

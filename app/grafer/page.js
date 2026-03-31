@@ -7,12 +7,42 @@ import {
   ScatterChart, Scatter, ZAxis,
 } from 'recharts'
 
-const RETAILERS = [
-  { key: 'farmasiet',   label: 'Farmasiet',   color: '#2563EB' },
-  { key: 'boots',       label: 'Boots',       color: '#E11D48' },
-  { key: 'vitusapotek', label: 'Vitusapotek', color: '#059669' },
-  { key: 'apotek1',     label: 'Apotek 1',    color: '#7C3AED' },
-]
+const KNOWN_RETAILER_STYLES = {
+  farmasiet:   { label: 'Farmasiet',   color: '#2563EB' },
+  boots:       { label: 'Boots',       color: '#E11D48' },
+  vitusapotek: { label: 'Vitusapotek', color: '#059669' },
+  apotek1:     { label: 'Apotek 1',    color: '#7C3AED' },
+}
+
+const NON_RETAILER_COLS = new Set([
+  'id', 'produkt', 'merke', 'varenummer', 'kategori',
+  'sist_oppdatert', 'laveste_pris', 'hoyeste_pris', 'dato',
+])
+
+const FALLBACK_COLORS = ['#D97706', '#0891B2', '#BE185D', '#65A30D', '#DC2626', '#9333EA']
+
+function deriveRetailers(data) {
+  if (!data?.length) return []
+  const keys = []
+  const seen = new Set()
+  data.forEach(row => {
+    Object.keys(row).forEach(k => {
+      if (!NON_RETAILER_COLS.has(k) && !seen.has(k)) {
+        const val = row[k]
+        if (val !== null && val !== undefined && !isNaN(Number(val))) {
+          seen.add(k)
+          keys.push(k)
+        }
+      }
+    })
+  })
+  let colorIdx = 0
+  return keys.map(key => ({
+    key,
+    label: KNOWN_RETAILER_STYLES[key]?.label || (key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')),
+    color: KNOWN_RETAILER_STYLES[key]?.color || FALLBACK_COLORS[colorIdx++ % FALLBACK_COLORS.length],
+  }))
+}
 
 function fmt(val) {
   if (val === null || val === undefined) return ''
@@ -33,6 +63,8 @@ export default function GraferPage() {
       .catch(() => setLoading(false))
   }, [])
 
+  const retailers = useMemo(() => deriveRetailers(data), [data])
+
   const categories = useMemo(() => {
     return [...new Set(data.map(r => r.kategori).filter(Boolean))].sort()
   }, [data])
@@ -52,7 +84,7 @@ export default function GraferPage() {
 
   // Chart 1: Average price per retailer
   const avgByRetailer = useMemo(() => {
-    return RETAILERS.map(r => {
+    return retailers.map(r => {
       const vals = filtered.map(row => row[r.key]).filter(v => v != null).map(Number)
       return {
         name: r.label,
@@ -60,29 +92,29 @@ export default function GraferPage() {
         color: r.color,
       }
     })
-  }, [filtered])
+  }, [filtered, retailers])
 
   // Chart 2: Cheapest retailer distribution (pie)
   const cheapestDist = useMemo(() => {
     const counts = {}
-    RETAILERS.forEach(r => { counts[r.label] = 0 })
+    retailers.forEach(r => { counts[r.label] = 0 })
     filtered.forEach(row => {
       let min = Infinity, winner = null
-      RETAILERS.forEach(r => {
+      retailers.forEach(r => {
         if (row[r.key] != null && Number(row[r.key]) < min) {
           min = Number(row[r.key]); winner = r.label
         }
       })
       if (winner) counts[winner]++
     })
-    return RETAILERS.map(r => ({ name: r.label, value: counts[r.label], color: r.color })).filter(e => e.value > 0)
-  }, [filtered])
+    return retailers.map(r => ({ name: r.label, value: counts[r.label], color: r.color })).filter(e => e.value > 0)
+  }, [filtered, retailers])
 
   // Chart 3: Top 10 products with biggest spread
   const topSpread = useMemo(() => {
     return filtered
       .map(row => {
-        const prices = RETAILERS.map(r => row[r.key]).filter(v => v != null).map(Number)
+        const prices = retailers.map(r => row[r.key]).filter(v => v != null).map(Number)
         if (prices.length < 2) return null
         const min = Math.min(...prices)
         const max = Math.max(...prices)
@@ -92,7 +124,7 @@ export default function GraferPage() {
       .filter(Boolean)
       .sort((a, b) => b.spread - a.spread)
       .slice(0, 10)
-  }, [filtered])
+  }, [filtered, retailers])
 
   // Chart 4: Price coverage heatmap data
   const coverageData = useMemo(() => {
@@ -100,19 +132,19 @@ export default function GraferPage() {
     return cats.map(cat => {
       const catRows = filtered.filter(r => r.kategori === cat)
       const result = { kategori: cat, total: catRows.length }
-      RETAILERS.forEach(r => {
+      retailers.forEach(r => {
         result[r.key] = catRows.filter(row => row[r.key] != null).length
         result[`${r.key}Pct`] = catRows.length ? Math.round(catRows.filter(row => row[r.key] != null).length / catRows.length * 100) : 0
       })
       return result
     })
-  }, [filtered])
+  }, [filtered, retailers])
 
   // Chart 5: Min vs Max scatter
   const scatterData = useMemo(() => {
     return filtered
       .map(row => {
-        const prices = RETAILERS.map(r => row[r.key]).filter(v => v != null).map(Number)
+        const prices = retailers.map(r => row[r.key]).filter(v => v != null).map(Number)
         if (prices.length < 2) return null
         return {
           min: Math.min(...prices),
@@ -122,7 +154,7 @@ export default function GraferPage() {
         }
       })
       .filter(Boolean)
-  }, [filtered])
+  }, [filtered, retailers])
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
@@ -266,7 +298,7 @@ export default function GraferPage() {
                   <YAxis tick={{ fontSize: 11, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} width={40} domain={[0, 100]} tickFormatter={v => `${v}%`} />
                   <Tooltip formatter={(v) => `${v}%`} labelStyle={{ fontFamily: 'DM Mono' }} />
                   <Legend wrapperStyle={{ fontSize: '0.7rem', fontFamily: 'DM Mono' }} />
-                  {RETAILERS.map(r => (
+                  {retailers.map(r => (
                     <Bar key={r.key} dataKey={`${r.key}Pct`} name={r.label} fill={r.color} radius={[2, 2, 0, 0]} opacity={0.8} />
                   ))}
                 </BarChart>
