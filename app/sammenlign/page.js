@@ -2,12 +2,42 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 
-const RETAILERS = [
-  { key: 'farmasiet',   label: 'Farmasiet',   color: '#2563EB' },
-  { key: 'boots',       label: 'Boots',       color: '#E11D48' },
-  { key: 'vitusapotek', label: 'Vitusapotek', color: '#059669' },
-  { key: 'apotek1',     label: 'Apotek 1',    color: '#7C3AED' },
-]
+const KNOWN_RETAILER_STYLES = {
+  farmasiet:   { label: 'Farmasiet',   color: '#2563EB' },
+  boots:       { label: 'Boots',       color: '#E11D48' },
+  vitusapotek: { label: 'Vitusapotek', color: '#059669' },
+  apotek1:     { label: 'Apotek 1',    color: '#7C3AED' },
+}
+
+const NON_RETAILER_COLS = new Set([
+  'id', 'produkt', 'merke', 'varenummer', 'kategori',
+  'sist_oppdatert', 'laveste_pris', 'hoyeste_pris', 'dato',
+])
+
+const FALLBACK_COLORS = ['#D97706', '#0891B2', '#BE185D', '#65A30D', '#DC2626', '#9333EA']
+
+function deriveRetailers(data) {
+  if (!data?.length) return []
+  const keys = []
+  const seen = new Set()
+  data.forEach(row => {
+    Object.keys(row).forEach(k => {
+      if (!NON_RETAILER_COLS.has(k) && !seen.has(k)) {
+        const val = row[k]
+        if (val !== null && val !== undefined && !isNaN(Number(val))) {
+          seen.add(k)
+          keys.push(k)
+        }
+      }
+    })
+  })
+  let colorIdx = 0
+  return keys.map(key => ({
+    key,
+    label: KNOWN_RETAILER_STYLES[key]?.label || (key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')),
+    color: KNOWN_RETAILER_STYLES[key]?.color || FALLBACK_COLORS[colorIdx++ % FALLBACK_COLORS.length],
+  }))
+}
 
 function fmt(val) {
   if (val === null || val === undefined) return null
@@ -42,6 +72,8 @@ export default function SammenlignPage() {
     load()
   }, [])
 
+  const retailers = useMemo(() => deriveRetailers(allProducts), [allProducts])
+
   const searchResults = useMemo(() => {
     if (!search.trim() || search.trim().length < 2) return []
     const q = search.toLowerCase()
@@ -73,7 +105,7 @@ export default function SammenlignPage() {
     if (!basket.length) return null
     const result = {}
     let allHavePrices = {}
-    RETAILERS.forEach(r => {
+    retailers.forEach(r => {
       const prices = basket.map(p => p[r.key]).filter(v => v != null).map(Number)
       result[r.key] = {
         total: prices.reduce((s, v) => s + v, 0),
@@ -83,7 +115,7 @@ export default function SammenlignPage() {
       allHavePrices[r.key] = prices.length
     })
 
-    const retailersWithAllPrices = RETAILERS.filter(r => result[r.key].count === basket.length)
+    const retailersWithAllPrices = retailers.filter(r => result[r.key].count === basket.length)
     let cheapest = null
     if (retailersWithAllPrices.length > 0) {
       cheapest = retailersWithAllPrices.reduce((best, r) =>
@@ -91,8 +123,8 @@ export default function SammenlignPage() {
       , retailersWithAllPrices[0])
     } else {
       // Fall back to the retailer with lowest total among those with most products
-      const maxCount = Math.max(...RETAILERS.map(r => result[r.key].count))
-      const candidates = RETAILERS.filter(r => result[r.key].count === maxCount && maxCount > 0)
+      const maxCount = Math.max(...retailers.map(r => result[r.key].count))
+      const candidates = retailers.filter(r => result[r.key].count === maxCount && maxCount > 0)
       if (candidates.length > 0) {
         cheapest = candidates.reduce((best, r) =>
           result[r.key].total < result[best.key].total ? r : best
@@ -101,15 +133,15 @@ export default function SammenlignPage() {
     }
 
     return { ...result, cheapest }
-  }, [basket])
+  }, [basket, retailers])
 
   const savings = useMemo(() => {
     if (!totals || !totals.cheapest) return null
     const cheapestTotal = totals[totals.cheapest.key].total
-    const most = Math.max(...RETAILERS.map(r => totals[r.key].count > 0 ? totals[r.key].total : 0))
+    const most = Math.max(...retailers.map(r => totals[r.key].count > 0 ? totals[r.key].total : 0))
     if (most <= cheapestTotal) return null
     return most - cheapestTotal
-  }, [totals])
+  }, [totals, retailers])
 
   return (
     <div className="app">
@@ -173,7 +205,7 @@ export default function SammenlignPage() {
       {basket.length > 0 && (
         <>
           <div className="compare-totals">
-            {RETAILERS.map(r => {
+            {retailers.map(r => {
               const t = totals?.[r.key]
               const isCheapest = totals?.cheapest?.key === r.key
               return (
@@ -209,7 +241,7 @@ export default function SammenlignPage() {
               <thead>
                 <tr>
                   <th>Produkt</th>
-                  {RETAILERS.map(r => (
+                  {retailers.map(r => (
                     <th key={r.key} className="th-price" style={{ textAlign: 'right' }}>
                       <div className="retailer-header" style={{ justifyContent: 'flex-end' }}>
                         <span className="retailer-dot" style={{ background: r.color }}></span>
@@ -223,7 +255,7 @@ export default function SammenlignPage() {
               </thead>
               <tbody>
                 {basket.map(row => {
-                  const prices = RETAILERS.map(r => row[r.key]).filter(v => v != null).map(Number)
+                  const prices = retailers.map(r => row[r.key]).filter(v => v != null).map(Number)
                   const min = prices.length ? Math.min(...prices) : null
 
                   return (
@@ -233,7 +265,7 @@ export default function SammenlignPage() {
                         <div className="product-brand">{row.merke}</div>
                         <div className="product-vn">{row.varenummer}</div>
                       </td>
-                      {RETAILERS.map(r => {
+                      {retailers.map(r => {
                         const val = row[r.key]
                         const isMin = val != null && Number(val) === min && prices.length > 1
                         return (
@@ -268,7 +300,7 @@ export default function SammenlignPage() {
                 })}
                 <tr className="compare-totals-row">
                   <td className="td-product"><strong>Totalt</strong></td>
-                  {RETAILERS.map(r => {
+                  {retailers.map(r => {
                     const t = totals?.[r.key]
                     const isCheapest = totals?.cheapest?.key === r.key
                     return (

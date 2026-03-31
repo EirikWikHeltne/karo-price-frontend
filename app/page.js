@@ -8,12 +8,42 @@ import {
   PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area,
 } from 'recharts'
 
-const RETAILERS = [
-  { key: 'farmasiet',   label: 'Farmasiet',   color: '#2563EB' },
-  { key: 'boots',       label: 'Boots',       color: '#E11D48' },
-  { key: 'vitusapotek', label: 'Vitusapotek', color: '#059669' },
-  { key: 'apotek1',     label: 'Apotek 1',    color: '#7C3AED' },
-]
+const KNOWN_RETAILER_STYLES = {
+  farmasiet:   { label: 'Farmasiet',   color: '#2563EB' },
+  boots:       { label: 'Boots',       color: '#E11D48' },
+  vitusapotek: { label: 'Vitusapotek', color: '#059669' },
+  apotek1:     { label: 'Apotek 1',    color: '#7C3AED' },
+}
+
+const NON_RETAILER_COLS = new Set([
+  'id', 'produkt', 'merke', 'varenummer', 'kategori',
+  'sist_oppdatert', 'laveste_pris', 'hoyeste_pris', 'dato',
+])
+
+const FALLBACK_COLORS = ['#D97706', '#0891B2', '#BE185D', '#65A30D', '#DC2626', '#9333EA']
+
+function deriveRetailers(data) {
+  if (!data?.length) return []
+  const keys = []
+  const seen = new Set()
+  data.forEach(row => {
+    Object.keys(row).forEach(k => {
+      if (!NON_RETAILER_COLS.has(k) && !seen.has(k)) {
+        const val = row[k]
+        if (val !== null && val !== undefined && !isNaN(Number(val))) {
+          seen.add(k)
+          keys.push(k)
+        }
+      }
+    })
+  })
+  let colorIdx = 0
+  return keys.map(key => ({
+    key,
+    label: KNOWN_RETAILER_STYLES[key]?.label || (key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')),
+    color: KNOWN_RETAILER_STYLES[key]?.color || FALLBACK_COLORS[colorIdx++ % FALLBACK_COLORS.length],
+  }))
+}
 
 const CATEGORIES = ['alle', 'Body lotion', 'Paracetamol', 'Mouthwash', 'Intimate', 'Ibuprofen']
 
@@ -97,6 +127,8 @@ export default function Page() {
     return () => clearTimeout(t)
   }, [fetchData])
 
+  const retailers = useMemo(() => deriveRetailers(data), [data])
+
   const brands = useMemo(() => {
     if (!data.length) return []
     return [...new Set(data.map(r => r.merke).filter(Boolean))].sort((a, b) => a.localeCompare(b))
@@ -132,19 +164,19 @@ export default function Page() {
     const withPrices = timeFiltered.filter(r => r.laveste_pris)
     const avgLow = withPrices.reduce((s,r) => s + Number(r.laveste_pris), 0) / (withPrices.length || 1)
     const avgHigh = withPrices.reduce((s,r) => s + Number(r.hoyeste_pris), 0) / (withPrices.length || 1)
-    const coverage = RETAILERS.map(r => ({
+    const coverage = retailers.map(r => ({
       ...r,
       count: timeFiltered.filter(row => row[r.key] !== null && row[r.key] !== undefined).length
     }))
     return { avgLow, avgHigh, coverage, total: timeFiltered.length }
-  }, [timeFiltered])
+  }, [timeFiltered, retailers])
 
   // --- Graph data ---
 
   // Average price per retailer
   const avgByRetailer = useMemo(() => {
     if (!sorted.length) return []
-    return RETAILERS.map(r => {
+    return retailers.map(r => {
       const vals = sorted.map(row => row[r.key]).filter(v => v != null).map(Number)
       return {
         name: r.label,
@@ -152,24 +184,24 @@ export default function Page() {
         color: r.color,
       }
     })
-  }, [sorted])
+  }, [sorted, retailers])
 
   // Cheapest retailer distribution
   const cheapestDist = useMemo(() => {
     if (!sorted.length) return []
     const counts = {}
-    RETAILERS.forEach(r => { counts[r.label] = 0 })
+    retailers.forEach(r => { counts[r.label] = 0 })
     sorted.forEach(row => {
       let min = Infinity, winner = null
-      RETAILERS.forEach(r => {
+      retailers.forEach(r => {
         if (row[r.key] != null && Number(row[r.key]) < min) {
           min = Number(row[r.key]); winner = r.label
         }
       })
       if (winner) counts[winner]++
     })
-    return RETAILERS.map(r => ({ name: r.label, value: counts[r.label], color: r.color })).filter(e => e.value > 0)
-  }, [sorted])
+    return retailers.map(r => ({ name: r.label, value: counts[r.label], color: r.color })).filter(e => e.value > 0)
+  }, [sorted, retailers])
 
   // Price range distribution (histogram-like)
   const priceDistribution = useMemo(() => {
@@ -196,13 +228,13 @@ export default function Page() {
     return cats.map(cat => {
       const catRows = sorted.filter(r => r.kategori === cat)
       const result = { kategori: cat }
-      RETAILERS.forEach(r => {
+      retailers.forEach(r => {
         const vals = catRows.map(row => row[r.key]).filter(v => v != null).map(Number)
         result[r.key] = vals.length ? +(vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : 0
       })
       return result
     })
-  }, [sorted])
+  }, [sorted, retailers])
 
   // Spread distribution by category
   const spreadByCategory = useMemo(() => {
@@ -211,7 +243,7 @@ export default function Page() {
     return cats.map(cat => {
       const catRows = sorted.filter(r => r.kategori === cat)
       const spreads = catRows.map(row => {
-        const prices = RETAILERS.map(r => row[r.key]).filter(v => v != null).map(Number)
+        const prices = retailers.map(r => row[r.key]).filter(v => v != null).map(Number)
         if (prices.length < 2) return 0
         return Math.max(...prices) - Math.min(...prices)
       }).filter(s => s > 0)
@@ -219,7 +251,7 @@ export default function Page() {
       const maxSpread = spreads.length ? +Math.max(...spreads).toFixed(2) : 0
       return { name: cat, snittSpread: avgSpread, maxSpread }
     }).sort((a, b) => b.snittSpread - a.snittSpread)
-  }, [sorted])
+  }, [sorted, retailers])
 
   function handleSort(col) {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -233,7 +265,7 @@ export default function Page() {
 
   function downloadExcel() {
     const rows = sorted.map(row => {
-      const prices = RETAILERS.map(r => row[r.key]).filter(v => v != null)
+      const prices = retailers.map(r => row[r.key]).filter(v => v != null)
       const min = prices.length ? Math.min(...prices) : null
       const max = prices.length ? Math.max(...prices) : null
       const obj = {
@@ -242,7 +274,7 @@ export default function Page() {
         Varenummer: row.varenummer,
         Kategori: row.kategori,
       }
-      RETAILERS.forEach(r => { obj[r.label] = row[r.key] ?? null })
+      retailers.forEach(r => { obj[r.label] = row[r.key] ?? null })
       obj['Laveste pris'] = min
       obj['Høyeste pris'] = max
       obj['Spread'] = min != null && max != null ? max - min : null
@@ -499,7 +531,7 @@ export default function Page() {
                   <PolarGrid stroke="var(--border)" />
                   <PolarAngleAxis dataKey="kategori" tick={{ fontSize: 11, fontFamily: 'DM Mono', fill: 'var(--text)' }} />
                   <PolarRadiusAxis tick={{ fontSize: 10, fontFamily: 'DM Mono' }} />
-                  {RETAILERS.map(r => (
+                  {retailers.map(r => (
                     <Radar key={r.key} name={r.label} dataKey={r.key} stroke={r.color} fill={r.color} fillOpacity={0.1} strokeWidth={2} />
                   ))}
                   <Tooltip formatter={(v) => `${fmt(v)} kr`} />
@@ -536,7 +568,7 @@ export default function Page() {
                 <th onClick={() => handleSort('kategori')} className={`th-category ${sortCol==='kategori'?'sorted':''}`}>
                   Kategori <SortIcon col="kategori" />
                 </th>
-                {RETAILERS.map(r => (
+                {retailers.map(r => (
                   <th key={r.key} onClick={() => handleSort(r.key)} className={`th-price ${sortCol===r.key?'sorted':''}`} style={{textAlign:'right'}}>
                     <div className="retailer-header" style={{justifyContent:'flex-end'}}>
                       <span className="retailer-dot" style={{background: r.color}}></span>
@@ -552,7 +584,7 @@ export default function Page() {
             </thead>
             <tbody>
               {sorted.map(row => {
-                const prices = RETAILERS.map(r => row[r.key]).filter(v => v !== null && v !== undefined)
+                const prices = retailers.map(r => row[r.key]).filter(v => v !== null && v !== undefined)
                 const min = prices.length ? Math.min(...prices) : null
                 const max = prices.length ? Math.max(...prices) : null
                 const spread = min && max ? max - min : null
@@ -569,7 +601,7 @@ export default function Page() {
                         {row.kategori}
                       </span>
                     </td>
-                    {RETAILERS.map(r => {
+                    {retailers.map(r => {
                       const val = row[r.key]
                       const isMin = val !== null && val !== undefined && val === min && prices.length > 1
                       const isMax = val !== null && val !== undefined && val === max && prices.length > 1 && min !== max

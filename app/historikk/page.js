@@ -6,12 +6,42 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-const RETAILERS = [
-  { key: 'farmasiet',   label: 'Farmasiet',   color: '#2563EB' },
-  { key: 'boots',       label: 'Boots',       color: '#E11D48' },
-  { key: 'vitusapotek', label: 'Vitusapotek', color: '#059669' },
-  { key: 'apotek1',     label: 'Apotek 1',    color: '#7C3AED' },
-]
+const KNOWN_RETAILER_STYLES = {
+  farmasiet:   { label: 'Farmasiet',   color: '#2563EB' },
+  boots:       { label: 'Boots',       color: '#E11D48' },
+  vitusapotek: { label: 'Vitusapotek', color: '#059669' },
+  apotek1:     { label: 'Apotek 1',    color: '#7C3AED' },
+}
+
+const NON_RETAILER_COLS = new Set([
+  'id', 'produkt', 'merke', 'varenummer', 'kategori',
+  'sist_oppdatert', 'laveste_pris', 'hoyeste_pris', 'dato',
+])
+
+const FALLBACK_COLORS = ['#D97706', '#0891B2', '#BE185D', '#65A30D', '#DC2626', '#9333EA']
+
+function deriveRetailers(data) {
+  if (!data?.length) return []
+  const keys = []
+  const seen = new Set()
+  data.forEach(row => {
+    Object.keys(row).forEach(k => {
+      if (!NON_RETAILER_COLS.has(k) && !seen.has(k)) {
+        const val = row[k]
+        if (val !== null && val !== undefined && !isNaN(Number(val))) {
+          seen.add(k)
+          keys.push(k)
+        }
+      }
+    })
+  })
+  let colorIdx = 0
+  return keys.map(key => ({
+    key,
+    label: KNOWN_RETAILER_STYLES[key]?.label || (key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')),
+    color: KNOWN_RETAILER_STYLES[key]?.color || FALLBACK_COLORS[colorIdx++ % FALLBACK_COLORS.length],
+  }))
+}
 
 const TIME_RANGES = [
   { label: '7 dager', value: 7 },
@@ -94,6 +124,8 @@ export default function HistorikkPage() {
     if (selectedProduct) fetchHistory(selectedProduct)
   }, [selectedProduct, fetchHistory])
 
+  const retailers = useMemo(() => deriveRetailers(products), [products])
+
   const categories = useMemo(() => {
     return [...new Set(products.map(r => r.kategori).filter(Boolean))].sort()
   }, [products])
@@ -120,12 +152,12 @@ export default function HistorikkPage() {
       const date = row.dato?.slice(0, 10) || row.sist_oppdatert?.slice(0, 10)
       if (!date) return
       if (!byDate[date]) byDate[date] = { dato: date }
-      RETAILERS.forEach(r => {
+      retailers.forEach(r => {
         if (row[r.key] != null) byDate[date][r.key] = Number(row[r.key])
       })
     })
     return Object.values(byDate).sort((a, b) => a.dato.localeCompare(b.dato))
-  }, [historyData])
+  }, [historyData, retailers])
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
@@ -268,7 +300,7 @@ export default function HistorikkPage() {
               <div className="historikk-current-prices">
                 <div className="historikk-prices-label">Nåværende priser</div>
                 <div className="historikk-prices-grid">
-                  {RETAILERS.map(r => (
+                  {retailers.map(r => (
                     <div key={r.key} className="historikk-price-card">
                       <span className="retailer-dot" style={{ background: r.color }}></span>
                       <span className="historikk-price-retailer">{r.label}</span>
@@ -331,7 +363,7 @@ export default function HistorikkPage() {
                       <Legend
                         wrapperStyle={{ fontSize: '0.75rem', fontFamily: 'DM Mono' }}
                       />
-                      {RETAILERS.map(r => (
+                      {retailers.map(r => (
                         <Line
                           key={r.key}
                           type="monotone"
@@ -358,7 +390,7 @@ export default function HistorikkPage() {
                       <thead>
                         <tr>
                           <th>Dato</th>
-                          {RETAILERS.map(r => (
+                          {retailers.map(r => (
                             <th key={r.key} style={{ textAlign: 'right' }}>
                               <div className="retailer-header" style={{ justifyContent: 'flex-end' }}>
                                 <span className="retailer-dot" style={{ background: r.color }}></span>
@@ -372,7 +404,7 @@ export default function HistorikkPage() {
                         {[...chartData].reverse().map(row => (
                           <tr key={row.dato}>
                             <td>{new Date(row.dato).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                            {RETAILERS.map(r => (
+                            {retailers.map(r => (
                               <td key={r.key} className="td-price">
                                 {row[r.key] != null
                                   ? <span className="price-val">{fmt(row[r.key])}</span>
