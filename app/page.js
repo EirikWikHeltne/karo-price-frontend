@@ -94,25 +94,31 @@ export default function Page() {
       const params = new URLSearchParams()
       if (kategori !== 'alle') params.set('kategori', kategori)
       if (search) params.set('search', search)
-      const res = await fetch(`/api/priser?${params}`, { cache: 'no-store' })
+
+      const [res, updRes] = await Promise.all([
+        fetch(`/api/priser?${params}`, { cache: 'no-store' }),
+        fetch('/api/siste-oppdatering', { cache: 'no-store' }).catch(() => null),
+      ])
+
       if (!res.ok) {
         throw new Error(`Server error: ${res.status}`)
       }
       const json = await res.json()
       setData(json || [])
-      // Fetch latest scan date from prishistorikk (more accurate than sist_oppdatert)
-      try {
-        const updRes = await fetch('/api/siste-oppdatering', { cache: 'no-store' })
-        if (updRes.ok) {
+
+      if (updRes?.ok) {
+        try {
           const { dato } = await updRes.json()
           if (dato) setLastUpdated(new Date(dato + 'T12:00:00'))
+        } catch (_) {
+          if (json?.length) {
+            const dates = json.map(r => r.sist_oppdatert).filter(Boolean).sort()
+            if (dates.length) setLastUpdated(new Date(dates[dates.length - 1]))
+          }
         }
-      } catch (_) {
-        // Fall back to sist_oppdatert from price data
-        if (json?.length) {
-          const dates = json.map(r => r.sist_oppdatert).filter(Boolean).sort()
-          if (dates.length) setLastUpdated(new Date(dates[dates.length - 1]))
-        }
+      } else if (json?.length) {
+        const dates = json.map(r => r.sist_oppdatert).filter(Boolean).sort()
+        if (dates.length) setLastUpdated(new Date(dates[dates.length - 1]))
       }
     } catch(e) {
       console.error(e)
@@ -587,7 +593,7 @@ export default function Page() {
                 const prices = retailers.map(r => row[r.key]).filter(v => v !== null && v !== undefined)
                 const min = prices.length ? Math.min(...prices) : null
                 const max = prices.length ? Math.max(...prices) : null
-                const spread = min && max ? max - min : null
+                const spread = min != null && max != null ? max - min : null
 
                 return (
                   <tr key={row.id}>

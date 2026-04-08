@@ -41,7 +41,7 @@ export async function GET(request) {
   if (varenummer) {
     query = query.eq('varenummer', varenummer)
   } else if (produkt) {
-    const safe = produkt.replace(/[(),.\\*"]/g, '')
+    const safe = produkt.replace(/[(),.\\*"%_]/g, '')
     if (safe) {
       query = query.ilike('produkt', `%${safe}%`)
     }
@@ -66,7 +66,7 @@ export async function GET(request) {
         if (varenummer) {
           fallbackQuery = fallbackQuery.eq('varenummer', varenummer)
         } else if (produkt) {
-          const safe = produkt.replace(/[(),.\\*"]/g, '')
+          const safe = produkt.replace(/[(),.\\*"%_]/g, '')
           if (safe) fallbackQuery = fallbackQuery.ilike('produkt', `%${safe}%`)
         }
 
@@ -115,7 +115,7 @@ export async function GET(request) {
     if (varenummer) {
       fallbackQuery = fallbackQuery.eq('varenummer', varenummer)
     } else if (produkt) {
-      const safe = produkt.replace(/[(),.\\*"]/g, '')
+      const safe = produkt.replace(/[(),.\\*"%_]/g, '')
       if (safe) fallbackQuery = fallbackQuery.ilike('produkt', `%${safe}%`)
     }
 

@@ -51,13 +51,19 @@ export default function SammenlignPage() {
   const [basket, setBasket] = useState([])
   const [mobileNav, setMobileNav] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(null)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     async function load() {
+      setError(null)
       try {
         const res = await fetch('/api/priser', { cache: 'no-store' })
-        if (res.ok) setAllProducts(await res.json())
-      } catch (_) {}
+        if (!res.ok) throw new Error(`Server error: ${res.status}`)
+        setAllProducts(await res.json())
+      } catch (e) {
+        console.error('Failed to fetch products:', e)
+        setError('Kunne ikke hente produkter. Prøv igjen.')
+      }
 
       try {
         const updRes = await fetch('/api/siste-oppdatering', { cache: 'no-store' })
@@ -104,7 +110,6 @@ export default function SammenlignPage() {
   const totals = useMemo(() => {
     if (!basket.length) return null
     const result = {}
-    let allHavePrices = {}
     retailers.forEach(r => {
       const prices = basket.map(p => p[r.key]).filter(v => v != null).map(Number)
       result[r.key] = {
@@ -112,7 +117,6 @@ export default function SammenlignPage() {
         count: prices.length,
         missing: basket.length - prices.length,
       }
-      allHavePrices[r.key] = prices.length
     })
 
     const retailersWithAllPrices = retailers.filter(r => result[r.key].count === basket.length)
@@ -320,7 +324,14 @@ export default function SammenlignPage() {
         </>
       )}
 
-      {!loading && basket.length === 0 && (
+      {error && !loading && (
+        <div className="empty">
+          <div className="empty-icon">&#9888;</div>
+          <div className="empty-text">{error}</div>
+        </div>
+      )}
+
+      {!error && !loading && basket.length === 0 && (
         <div className="empty">
           <div className="empty-icon">&#128722;</div>
           <div className="empty-text">Søk og legg til produkter for å sammenligne totalpriser mellom apotekene</div>
