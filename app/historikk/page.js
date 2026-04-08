@@ -101,7 +101,7 @@ export default function HistorikkPage() {
       const params = new URLSearchParams()
       if (product.varenummer) params.set('varenummer', product.varenummer)
       else params.set('produkt', product.produkt)
-      if (dager > 0) params.set('dager', dager.toString())
+      params.set('dager', dager.toString())
 
       const res = await fetch(`/api/historikk?${params}`, { cache: 'no-store' })
       const json = await res.json()
@@ -179,7 +179,7 @@ export default function HistorikkPage() {
   function handleProductSelect(p) {
     setSelectedProduct(p)
     // On mobile, collapse sidebar after selection
-    if (window.innerWidth <= 768) {
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
       setSidebarOpen(false)
     }
   }

@@ -6,7 +6,7 @@ export async function GET() {
   const info = {
     env: {
       url: process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30) + '…',
-      serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'set (' + process.env.SUPABASE_SERVICE_ROLE_KEY.slice(0, 8) + '…)' : 'MISSING',
+      serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'set' : 'MISSING',
     }
   }
 

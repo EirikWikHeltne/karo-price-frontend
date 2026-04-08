@@ -47,7 +47,7 @@ export async function GET(request) {
 
   if (search) {
     // Strip characters with special meaning in PostgREST filter syntax
-    const safe = search.replace(/[(),.\\*"]/g, '')
+    const safe = search.replace(/[(),.\\*"%_]/g, '')
     if (safe) {
       query = query.or(`produkt.ilike.%${safe}%,merke.ilike.%${safe}%,varenummer.ilike.%${safe}%`)
     }
