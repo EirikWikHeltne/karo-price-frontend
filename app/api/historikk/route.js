@@ -4,6 +4,54 @@ export const dynamic = 'force-dynamic'
 
 const PAGE_SIZE = 1000
 
+// Possible column names for the retailer identifier in a normalized/long table
+const RETAILER_ID_COLS = ['kilde', 'apotek', 'kjede', 'retailer', 'butikk', 'pharmacy']
+// Possible column names for the price value in a normalized/long table
+const PRICE_VAL_COLS = ['pris', 'price', 'verdi', 'value']
+
+/**
+ * Detect if data is in long/normalized format (one row per retailer per date)
+ * and pivot to wide format (one row per date, retailer prices as columns).
+ */
+function maybeNormalize(rows) {
+  if (!rows?.length) return rows
+  const first = rows[0]
+
+  const retailerCol = RETAILER_ID_COLS.find(c => first[c] != null)
+  const priceCol = PRICE_VAL_COLS.find(c => first[c] != null)
+
+  // Not long format — already has separate retailer columns (wide format)
+  if (!retailerCol || !priceCol) return rows
+
+  // Normalize retailer names to match prissammenligning column names
+  function normalizeKey(name) {
+    const n = String(name).toLowerCase().trim()
+    if (n.includes('apotek 1') || n === 'apotek1') return 'apotek1'
+    if (n.includes('farmasiet')) return 'farmasiet'
+    if (n.includes('boots')) return 'boots'
+    if (n.includes('vitusapotek') || n.includes('vitus apotek')) return 'vitusapotek'
+    return n.replace(/\s+/g, '_')
+  }
+
+  // Pivot: group by (dato, varenummer) → spread retailer prices into columns
+  const grouped = {}
+  rows.forEach(row => {
+    const date = row.dato?.slice?.(0, 10) || ''
+    const vn = row.varenummer || ''
+    const key = `${date}|${vn}`
+    if (!grouped[key]) {
+      grouped[key] = { dato: date, varenummer: vn, produkt: row.produkt }
+    }
+    const rKey = normalizeKey(row[retailerCol])
+    const price = Number(row[priceCol])
+    if (rKey && !isNaN(price)) {
+      grouped[key][rKey] = price
+    }
+  })
+
+  return Object.values(grouped).sort((a, b) => (a.dato || '').localeCompare(b.dato || ''))
+}
+
 async function fetchAllRows(query) {
   const allRows = []
   let from = 0
@@ -142,7 +190,8 @@ export async function GET(request) {
     }
   }
 
-  return Response.json(data, {
+  const normalized = maybeNormalize(data)
+  return Response.json(normalized, {
     headers: {
       'Cache-Control': 'no-store, no-cache, must-revalidate',
       'Pragma': 'no-cache',
