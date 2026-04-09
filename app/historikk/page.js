@@ -65,6 +65,7 @@ export default function HistorikkPage() {
   const [kategori, setKategori] = useState('alle')
   const [search, setSearch] = useState('')
   const [tableNotFound, setTableNotFound] = useState(false)
+  const [historyError, setHistoryError] = useState(null)
   const [mobileNav, setMobileNav] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [lastUpdated, setLastUpdated] = useState(null)
@@ -97,6 +98,7 @@ export default function HistorikkPage() {
     if (!product) return
     setHistoryLoading(true)
     setTableNotFound(false)
+    setHistoryError(null)
     try {
       const params = new URLSearchParams()
       if (product.varenummer) params.set('varenummer', product.varenummer)
@@ -112,9 +114,11 @@ export default function HistorikkPage() {
       } else if (Array.isArray(json)) {
         setHistoryData(json)
       } else {
+        setHistoryError(json.error || 'Kunne ikke hente prishistorikk')
         setHistoryData([])
       }
     } catch {
+      setHistoryError('Kunne ikke hente prishistorikk. Prøv igjen.')
       setHistoryData([])
     }
     setHistoryLoading(false)
@@ -124,7 +128,10 @@ export default function HistorikkPage() {
     if (selectedProduct) fetchHistory(selectedProduct)
   }, [selectedProduct, fetchHistory])
 
-  const retailers = useMemo(() => deriveRetailers(products), [products])
+  const retailers = useMemo(() => {
+    const all = [...products, ...historyData]
+    return deriveRetailers(all)
+  }, [products, historyData])
 
   const categories = useMemo(() => {
     return [...new Set(products.map(r => r.kategori).filter(Boolean))].sort()
@@ -314,13 +321,27 @@ export default function HistorikkPage() {
                 </div>
               </div>
 
-              {tableNotFound ? (
+              {historyError ? (
+                <div className="chart-card" style={{ marginTop: '1rem' }}>
+                  <div className="empty" style={{ padding: '3rem' }}>
+                    <div className="empty-icon">&#9888;</div>
+                    <div className="empty-text">{historyError}</div>
+                    <button
+                      className="tab active"
+                      style={{ marginTop: '1rem' }}
+                      onClick={() => fetchHistory(selectedProduct)}
+                    >
+                      Prøv igjen
+                    </button>
+                  </div>
+                </div>
+              ) : tableNotFound ? (
                 <div className="chart-card" style={{ marginTop: '1rem' }}>
                   <div className="empty" style={{ padding: '3rem' }}>
                     <div className="empty-icon">&#128202;</div>
                     <div className="empty-text">Prishistorikk er ikke tilgjengelig ennå</div>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
-                      Tabellen &laquo;prishistorikk&raquo; finnes ikke i databasen. Historiske prisdata vil vises her når tabellen er opprettet og fylt med data.
+                      Historiske prisdata vil vises her når data er tilgjengelig.
                     </p>
                   </div>
                 </div>
@@ -378,6 +399,11 @@ export default function HistorikkPage() {
                       ))}
                     </LineChart>
                   </ResponsiveContainer>
+                  {chartData.length === 1 && (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.75rem', textAlign: 'center' }}>
+                      Kun nåværende priser tilgjengelig — historiske data vil bygges opp over tid.
+                    </p>
+                  )}
                 </div>
               )}
 
