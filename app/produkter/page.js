@@ -72,7 +72,7 @@ export default function ProdukterPage() {
     else { setSortCol(col); setSortDir('asc') }
   }
 
-  function SortIcon({ col }) {
+  const renderSortIcon = (col) => {
     if (sortCol !== col) return <span style={{ opacity: 0.3 }}>&#8597;</span>
     return <span>{sortDir === 'asc' ? '\u2191' : '\u2193'}</span>
   }
@@ -188,16 +188,16 @@ export default function ProdukterPage() {
             <thead>
               <tr>
                 <th onClick={() => handleSort('varenummer')} className={sortCol === 'varenummer' ? 'sorted' : ''} style={{ width: '120px' }}>
-                  Varenummer <SortIcon col="varenummer" />
+                  Varenummer {renderSortIcon('varenummer')}
                 </th>
                 <th onClick={() => handleSort('produkt')} className={sortCol === 'produkt' ? 'sorted' : ''}>
-                  Produkt <SortIcon col="produkt" />
+                  Produkt {renderSortIcon('produkt')}
                 </th>
                 <th onClick={() => handleSort('merke')} className={sortCol === 'merke' ? 'sorted' : ''} style={{ width: '160px' }}>
-                  Merke <SortIcon col="merke" />
+                  Merke {renderSortIcon('merke')}
                 </th>
                 <th onClick={() => handleSort('kategori')} className={sortCol === 'kategori' ? 'sorted' : ''} style={{ width: '140px' }}>
-                  Kategori <SortIcon col="kategori" />
+                  Kategori {renderSortIcon('kategori')}
                 </th>
                 <th style={{ width: '140px' }}>Sist oppdatert</th>
               </tr>
