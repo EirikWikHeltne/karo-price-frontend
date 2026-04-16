@@ -49,6 +49,30 @@ function fmt(val) {
   return Number(val).toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function GrafTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="chart-tooltip">
+      <div className="chart-tooltip-label">{label}</div>
+      {payload.map(p => (
+        <div key={p.name} className="chart-tooltip-row">
+          <span className="chart-tooltip-dot" style={{ background: p.payload?.color || p.color }}></span>
+          {fmt(p.value)} kr
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function renderGrafPieLabel({ name, value, cx, x }) {
+  const anchor = x > cx ? 'start' : 'end'
+  return (
+    <text x={x} y={0} textAnchor={anchor} fontSize={11} fontFamily="DM Mono" fill="var(--text)">
+      {name} ({value})
+    </text>
+  )
+}
+
 export default function GraferPage() {
   const [data, setData]       = useState([])
   const [loading, setLoading] = useState(true)
@@ -156,30 +180,6 @@ export default function GraferPage() {
       .filter(Boolean)
   }, [filtered, retailers])
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null
-    return (
-      <div className="chart-tooltip">
-        <div className="chart-tooltip-label">{label}</div>
-        {payload.map(p => (
-          <div key={p.name} className="chart-tooltip-row">
-            <span className="chart-tooltip-dot" style={{ background: p.payload?.color || p.color }}></span>
-            {fmt(p.value)} kr
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  const renderPieLabel = ({ name, value, cx, x }) => {
-    const anchor = x > cx ? 'start' : 'end'
-    return (
-      <text x={x} y={0} textAnchor={anchor} fontSize={11} fontFamily="DM Mono" fill="var(--text)">
-        {name} ({value})
-      </text>
-    )
-  }
-
   return (
     <div className="app">
       <header className="header">
@@ -251,7 +251,7 @@ export default function GraferPage() {
                   tickLine={false}
                   width={50}
                 />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg)' }} />
+                <Tooltip content={<GrafTooltip />} cursor={{ fill: 'var(--bg)' }} />
                 <Bar dataKey="snitt" name="Snittpris" radius={[4, 4, 0, 0]}>
                   {avgByRetailer.map(e => (
                     <Cell key={e.name} fill={e.color} />
@@ -274,7 +274,7 @@ export default function GraferPage() {
                   cy="50%"
                   outerRadius={90}
                   innerRadius={40}
-                  label={renderPieLabel}
+                  label={renderGrafPieLabel}
                   labelLine={{ stroke: 'var(--text-faint)' }}
                 >
                   {cheapestDist.map(e => (

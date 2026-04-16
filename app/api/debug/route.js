@@ -1,11 +1,15 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabaseServer'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
+  if (process.env.NODE_ENV !== 'development') {
+    return Response.json({ error: 'Not available in production' }, { status: 404 })
+  }
+
   const info = {
     env: {
-      url: process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30) + '…',
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'set' : 'MISSING',
       serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'set' : 'MISSING',
     }
   }
@@ -14,13 +18,7 @@ export async function GET() {
     return Response.json(info)
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
-
-  // Test 1: check table and get exact row count
-  const { count, error: tablesError } = await supabase
+  const { count, error: tablesError } = await getSupabase()
     .from('prissammenligning')
     .select('*', { count: 'exact', head: true })
 
@@ -28,17 +26,6 @@ export async function GET() {
     totalRows: count,
     error: tablesError?.message || null,
     errorCode: tablesError?.code || null,
-  }
-
-  // Test 2: grab one raw row
-  const { data: sample, error: sampleError } = await supabase
-    .from('prissammenligning')
-    .select('*')
-    .limit(1)
-
-  info.sampleRow = {
-    data: sample,
-    error: sampleError?.message || null,
   }
 
   return Response.json(info)

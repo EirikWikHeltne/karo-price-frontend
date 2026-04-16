@@ -1,16 +1,14 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabaseServer'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  let supabase
+  try {
+    supabase = getSupabase()
+  } catch {
     return Response.json({ error: 'Server misconfiguration' }, { status: 500 })
   }
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
 
   // Get the most recent scan date from prishistorikk
   let dato = null

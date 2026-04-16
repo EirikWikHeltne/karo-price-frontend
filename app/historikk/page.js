@@ -55,6 +55,23 @@ function fmt(val) {
   return Number(val).toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function HistoryTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="chart-tooltip">
+      <div className="chart-tooltip-label">
+        {new Date(label).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
+      </div>
+      {payload.map(p => (
+        <div key={p.name} className="chart-tooltip-row">
+          <span className="chart-tooltip-dot" style={{ background: p.color }}></span>
+          {p.name}: {fmt(p.value)} kr
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function HistorikkPage() {
   const [products, setProducts] = useState([])
   const [historyData, setHistoryData] = useState([])
@@ -72,25 +89,19 @@ export default function HistorikkPage() {
 
   // Load product list and last updated date
   useEffect(() => {
-    fetch('/api/priser', { cache: 'no-store' })
-      .then(r => r.json())
-      .then(d => {
-        setProducts(d || [])
-        setLoading(false)
-        // Fall back to sist_oppdatert from product data if siste-oppdatering fails
-        if (!lastUpdated && d?.length) {
-          const dates = d.map(r => r.sist_oppdatert).filter(Boolean).sort()
-          if (dates.length) setLastUpdated(new Date(dates[dates.length - 1]))
-        }
-      })
-      .catch(() => setLoading(false))
-
-    fetch('/api/siste-oppdatering', { cache: 'no-store' })
-      .then(r => r.json())
-      .then(({ dato }) => {
-        if (dato) setLastUpdated(new Date(dato + 'T12:00:00'))
-      })
-      .catch(() => {})
+    Promise.all([
+      fetch('/api/produkter', { cache: 'no-store' }).then(r => r.json()).catch(() => []),
+      fetch('/api/siste-oppdatering', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
+    ]).then(([productData, updData]) => {
+      setProducts(productData || [])
+      setLoading(false)
+      if (updData?.dato) {
+        setLastUpdated(new Date(updData.dato + 'T12:00:00'))
+      } else if (productData?.length) {
+        const dates = productData.map(r => r.sist_oppdatert).filter(Boolean).sort()
+        if (dates.length) setLastUpdated(new Date(dates[dates.length - 1]))
+      }
+    })
   }, [])
 
   // Fetch history when product is selected
@@ -165,23 +176,6 @@ export default function HistorikkPage() {
     })
     return Object.values(byDate).sort((a, b) => a.dato.localeCompare(b.dato))
   }, [historyData, retailers])
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null
-    return (
-      <div className="chart-tooltip">
-        <div className="chart-tooltip-label">
-          {new Date(label).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
-        </div>
-        {payload.map(p => (
-          <div key={p.name} className="chart-tooltip-row">
-            <span className="chart-tooltip-dot" style={{ background: p.color }}></span>
-            {p.name}: {fmt(p.value)} kr
-          </div>
-        ))}
-      </div>
-    )
-  }
 
   function handleProductSelect(p) {
     setSelectedProduct(p)
@@ -380,7 +374,7 @@ export default function HistorikkPage() {
                         width={55}
                         tickFormatter={v => `${v} kr`}
                       />
-                      <Tooltip content={<CustomTooltip />} />
+                      <Tooltip content={<HistoryTooltip />} />
                       <Legend
                         wrapperStyle={{ fontSize: '0.75rem', fontFamily: 'DM Mono' }}
                       />

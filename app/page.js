@@ -73,6 +73,42 @@ function fmtShort(val) {
   return Number(val).toLocaleString('nb-NO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="chart-tooltip">
+      <div className="chart-tooltip-label">{label}</div>
+      {payload.map(p => (
+        <div key={p.name || p.dataKey} className="chart-tooltip-row">
+          <span className="chart-tooltip-dot" style={{ background: p.payload?.color || p.color || p.fill }}></span>
+          {p.name}: {fmt(p.value)} kr
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function PieTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="chart-tooltip">
+      <div className="chart-tooltip-row">
+        <span className="chart-tooltip-dot" style={{ background: payload[0].payload?.color }}></span>
+        {payload[0].name}: {payload[0].value} produkter
+      </div>
+    </div>
+  )
+}
+
+function renderPieLabel({ name, value, cx, x }) {
+  const anchor = x > cx ? 'start' : 'end'
+  return (
+    <text x={x} y={0} textAnchor={anchor} fontSize={11} fontFamily="DM Mono" fill="var(--text)">
+      {name} ({value})
+    </text>
+  )
+}
+
 export default function Page() {
   const [data, setData]         = useState([])
   const [loading, setLoading]   = useState(true)
@@ -264,7 +300,7 @@ export default function Page() {
     else { setSortCol(col); setSortDir('asc') }
   }
 
-  function SortIcon({ col }) {
+  const renderSortIcon = (col) => {
     if (sortCol !== col) return <span style={{opacity:0.3}}>↕</span>
     return <span>{sortDir === 'asc' ? '↑' : '↓'}</span>
   }
@@ -290,42 +326,6 @@ export default function Page() {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Priser')
     XLSX.writeFile(wb, `karo-priser-${new Date().toISOString().slice(0, 10)}.xlsx`)
-  }
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null
-    return (
-      <div className="chart-tooltip">
-        <div className="chart-tooltip-label">{label}</div>
-        {payload.map(p => (
-          <div key={p.name || p.dataKey} className="chart-tooltip-row">
-            <span className="chart-tooltip-dot" style={{ background: p.payload?.color || p.color || p.fill }}></span>
-            {p.name}: {fmt(p.value)} kr
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  const PieTooltip = ({ active, payload }) => {
-    if (!active || !payload?.length) return null
-    return (
-      <div className="chart-tooltip">
-        <div className="chart-tooltip-row">
-          <span className="chart-tooltip-dot" style={{ background: payload[0].payload?.color }}></span>
-          {payload[0].name}: {payload[0].value} produkter
-        </div>
-      </div>
-    )
-  }
-
-  const renderPieLabel = ({ name, value, cx, x }) => {
-    const anchor = x > cx ? 'start' : 'end'
-    return (
-      <text x={x} y={0} textAnchor={anchor} fontSize={11} fontFamily="DM Mono" fill="var(--text)">
-        {name} ({value})
-      </text>
-    )
   }
 
   return (
@@ -569,21 +569,21 @@ export default function Page() {
             <thead>
               <tr>
                 <th onClick={() => handleSort('produkt')} className={sortCol==='produkt'?'sorted':''}>
-                  Produkt <SortIcon col="produkt" />
+                  Produkt {renderSortIcon('produkt')}
                 </th>
                 <th onClick={() => handleSort('kategori')} className={`th-category ${sortCol==='kategori'?'sorted':''}`}>
-                  Kategori <SortIcon col="kategori" />
+                  Kategori {renderSortIcon('kategori')}
                 </th>
                 {retailers.map(r => (
                   <th key={r.key} onClick={() => handleSort(r.key)} className={`th-price ${sortCol===r.key?'sorted':''}`} style={{textAlign:'right'}}>
                     <div className="retailer-header" style={{justifyContent:'flex-end'}}>
                       <span className="retailer-dot" style={{background: r.color}}></span>
-                      <span className="retailer-label">{r.label}</span> <SortIcon col={r.key} />
+                      <span className="retailer-label">{r.label}</span> {renderSortIcon(r.key)}
                     </div>
                   </th>
                 ))}
                 <th onClick={() => handleSort('laveste_pris')} className={sortCol==='laveste_pris'?'sorted':''} style={{textAlign:'right'}}>
-                  Lavest <SortIcon col="laveste_pris" />
+                  Lavest {renderSortIcon('laveste_pris')}
                 </th>
                 <th style={{textAlign:'right'}}>Spread</th>
               </tr>
