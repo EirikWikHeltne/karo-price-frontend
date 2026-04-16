@@ -1,5 +1,6 @@
 import { getSupabase } from '@/lib/supabaseServer'
 import { fetchAllRows } from '@/lib/fetchAllRows'
+import { cleanRows, extractPriceColumns } from '@/lib/cleanRow'
 
 export const dynamic = 'force-dynamic'
 
@@ -7,6 +8,11 @@ export const dynamic = 'force-dynamic'
 const RETAILER_ID_COLS = ['kilde', 'apotek', 'kjede', 'retailer', 'butikk', 'pharmacy']
 // Possible column names for the price value in a normalized/long table
 const PRICE_VAL_COLS = ['pris', 'price', 'verdi', 'value']
+
+const NO_CACHE = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate',
+  'Pragma': 'no-cache',
+}
 
 /**
  * Detect if data is in long/normalized format (one row per retailer per date)
@@ -49,6 +55,19 @@ function maybeNormalize(rows) {
   })
 
   return Object.values(grouped).sort((a, b) => (a.dato || '').localeCompare(b.dato || ''))
+}
+
+/**
+ * Convert prissammenligning rows to history-like format.
+ * Uses extractPriceColumns to ensure only actual retailer prices are included.
+ */
+function toHistoryFormat(rows) {
+  return rows.map(row => ({
+    dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+    varenummer: row.varenummer,
+    produkt: row.produkt,
+    ...extractPriceColumns(row),
+  }))
 }
 
 export async function GET(request) {
@@ -104,34 +123,13 @@ export async function GET(request) {
 
         const { data: fbData } = await fallbackQuery
         if (fbData?.length) {
-          // Convert current prices to history-like format
-          const NON_PRICE_COLS = new Set(['id', 'produkt', 'merke', 'varenummer', 'kategori', 'sist_oppdatert', 'laveste_pris', 'hoyeste_pris'])
-          const rows = fbData.map(row => {
-            const entry = {
-              dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-              varenummer: row.varenummer,
-              produkt: row.produkt,
-            }
-            Object.keys(row).forEach(k => {
-              if (!NON_PRICE_COLS.has(k)) entry[k] = row[k]
-            })
-            return entry
-          })
-          return Response.json(rows, {
-            headers: {
-              'Cache-Control': 'no-store, no-cache, must-revalidate',
-              'Pragma': 'no-cache',
-            },
-          })
+          return Response.json(toHistoryFormat(fbData), { headers: NO_CACHE })
         }
       } catch (_) { /* ignore fallback errors */ }
 
       return Response.json(
         { error: 'Prishistorikk-tabellen finnes ikke ennå', code: 'TABLE_NOT_FOUND' },
-        {
-          status: 404,
-          headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
-        }
+        { status: 404, headers: NO_CACHE }
       )
     }
     console.error('Supabase error:', error)
@@ -153,32 +151,10 @@ export async function GET(request) {
 
     const { data: fbData } = await fallbackQuery
     if (fbData?.length) {
-      const NON_PRICE_COLS = new Set(['id', 'produkt', 'merke', 'varenummer', 'kategori', 'sist_oppdatert', 'laveste_pris', 'hoyeste_pris'])
-      const rows = fbData.map(row => {
-        const entry = {
-          dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-          varenummer: row.varenummer,
-          produkt: row.produkt,
-        }
-        Object.keys(row).forEach(k => {
-          if (!NON_PRICE_COLS.has(k)) entry[k] = row[k]
-        })
-        return entry
-      })
-      return Response.json(rows, {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-          'Pragma': 'no-cache',
-        },
-      })
+      return Response.json(toHistoryFormat(fbData), { headers: NO_CACHE })
     }
   }
 
   const normalized = maybeNormalize(data)
-  return Response.json(normalized, {
-    headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Pragma': 'no-cache',
-    },
-  })
+  return Response.json(cleanRows(normalized), { headers: NO_CACHE })
 }
