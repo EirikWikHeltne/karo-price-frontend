@@ -1,53 +1,14 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
-import Link from 'next/link'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area,
   ScatterChart, Scatter, ZAxis,
 } from 'recharts'
-
-const KNOWN_RETAILER_STYLES = {
-  farmasiet:   { label: 'Farmasiet',   color: '#2563EB' },
-  boots:       { label: 'Boots',       color: '#E11D48' },
-  vitusapotek: { label: 'Vitusapotek', color: '#059669' },
-  apotek1:     { label: 'Apotek 1',    color: '#7C3AED' },
-}
-
-const NON_RETAILER_COLS = new Set([
-  'id', 'produkt', 'merke', 'varenummer', 'kategori',
-  'sist_oppdatert', 'laveste_pris', 'hoyeste_pris', 'dato',
-])
-
-const FALLBACK_COLORS = ['#D97706', '#0891B2', '#BE185D', '#65A30D', '#DC2626', '#9333EA']
-
-function deriveRetailers(data) {
-  if (!data?.length) return []
-  const keys = []
-  const seen = new Set()
-  data.forEach(row => {
-    Object.keys(row).forEach(k => {
-      if (!NON_RETAILER_COLS.has(k) && !seen.has(k)) {
-        const val = row[k]
-        if (val !== null && val !== undefined && !isNaN(Number(val))) {
-          seen.add(k)
-          keys.push(k)
-        }
-      }
-    })
-  })
-  let colorIdx = 0
-  return keys.map(key => ({
-    key,
-    label: KNOWN_RETAILER_STYLES[key]?.label || (key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')),
-    color: KNOWN_RETAILER_STYLES[key]?.color || FALLBACK_COLORS[colorIdx++ % FALLBACK_COLORS.length],
-  }))
-}
-
-function fmt(val) {
-  if (val === null || val === undefined) return ''
-  return Number(val).toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
+import { deriveRetailers } from '@/lib/retailers'
+import { fmt } from '@/lib/format'
 
 function GrafTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
@@ -78,7 +39,6 @@ export default function GraferPage() {
   const [loading, setLoading] = useState(true)
   const [kategori, setKategori] = useState('alle')
   const [merke, setMerke]     = useState('alle')
-  const [mobileNav, setMobileNav] = useState(false)
 
   useEffect(() => {
     fetch('/api/priser', { cache: 'no-store' })
@@ -182,24 +142,7 @@ export default function GraferPage() {
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="header-left">
-          <div className="header-logo">KARO PRISER</div>
-          <div className="header-sub">Prisovervåking</div>
-        </div>
-        <button className="mobile-nav-toggle" onClick={() => setMobileNav(!mobileNav)} aria-label="Meny">
-          <span></span><span></span><span></span>
-        </button>
-        <div className={`header-right ${mobileNav ? 'open' : ''}`}>
-          <nav className="header-nav">
-            <Link href="/" className="nav-link" onClick={() => setMobileNav(false)}>Tabell</Link>
-            <Link href="/historikk" className="nav-link" onClick={() => setMobileNav(false)}>Historikk</Link>
-            <span className="nav-link active">Grafer</span>
-            <Link href="/produkter" className="nav-link" onClick={() => setMobileNav(false)}>Produkter</Link>
-            <Link href="/sammenlign" className="nav-link" onClick={() => setMobileNav(false)}>Sammenlign</Link>
-          </nav>
-        </div>
-      </header>
+      <Header active="/grafer" showLastUpdated={false} />
 
       <div className="controls">
         <div className="filter-tabs">
@@ -362,10 +305,7 @@ export default function GraferPage() {
         </div>
       )}
 
-      <footer className="footer">
-        <span>Karo Healthcare Norway</span>
-        <span>Oppdateres daglig kl. 03:00</span>
-      </footer>
+      <Footer left="Karo Healthcare Norway" />
     </div>
   )
 }
