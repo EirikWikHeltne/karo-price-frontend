@@ -1,55 +1,15 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import Link from 'next/link'
-
-const KNOWN_RETAILER_STYLES = {
-  farmasiet:   { label: 'Farmasiet',   color: '#2563EB' },
-  boots:       { label: 'Boots',       color: '#E11D48' },
-  vitusapotek: { label: 'Vitusapotek', color: '#059669' },
-  apotek1:     { label: 'Apotek 1',    color: '#7C3AED' },
-}
-
-const NON_RETAILER_COLS = new Set([
-  'id', 'produkt', 'merke', 'varenummer', 'kategori',
-  'sist_oppdatert', 'laveste_pris', 'hoyeste_pris', 'dato',
-])
-
-const FALLBACK_COLORS = ['#D97706', '#0891B2', '#BE185D', '#65A30D', '#DC2626', '#9333EA']
-
-function deriveRetailers(data) {
-  if (!data?.length) return []
-  const keys = []
-  const seen = new Set()
-  data.forEach(row => {
-    Object.keys(row).forEach(k => {
-      if (!NON_RETAILER_COLS.has(k) && !seen.has(k)) {
-        const val = row[k]
-        if (val !== null && val !== undefined && !isNaN(Number(val))) {
-          seen.add(k)
-          keys.push(k)
-        }
-      }
-    })
-  })
-  let colorIdx = 0
-  return keys.map(key => ({
-    key,
-    label: KNOWN_RETAILER_STYLES[key]?.label || (key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')),
-    color: KNOWN_RETAILER_STYLES[key]?.color || FALLBACK_COLORS[colorIdx++ % FALLBACK_COLORS.length],
-  }))
-}
-
-function fmt(val) {
-  if (val === null || val === undefined) return null
-  return Number(val).toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
+import { deriveRetailers } from '@/lib/retailers'
+import { fmt } from '@/lib/format'
 
 export default function SammenlignPage() {
   const [allProducts, setAllProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [basket, setBasket] = useState([])
-  const [mobileNav, setMobileNav] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(null)
   const [error, setError] = useState(null)
 
@@ -149,30 +109,7 @@ export default function SammenlignPage() {
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="header-left">
-          <div className="header-logo">KARO PRISER</div>
-          <div className="header-sub">Prisovervåking</div>
-        </div>
-        <button className="mobile-nav-toggle" onClick={() => setMobileNav(!mobileNav)} aria-label="Meny">
-          <span></span><span></span><span></span>
-        </button>
-        <div className={`header-right ${mobileNav ? 'open' : ''}`}>
-          <nav className="header-nav">
-            <Link href="/" className="nav-link" onClick={() => setMobileNav(false)}>Tabell</Link>
-            <Link href="/historikk" className="nav-link" onClick={() => setMobileNav(false)}>Historikk</Link>
-            <Link href="/grafer" className="nav-link" onClick={() => setMobileNav(false)}>Grafer</Link>
-            <Link href="/produkter" className="nav-link" onClick={() => setMobileNav(false)}>Produkter</Link>
-            <span className="nav-link active">Sammenlign</span>
-          </nav>
-          <div className="header-meta">
-            <span className="header-dot"></span>
-            {lastUpdated
-              ? `Oppdatert ${lastUpdated.toLocaleDateString('nb-NO', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}`
-              : 'Laster...'}
-          </div>
-        </div>
-      </header>
+      <Header active="/sammenlign" lastUpdated={lastUpdated} />
 
       <div className="compare-intro">
         <h2 className="compare-title">Handlekurv-sammenligning</h2>
@@ -345,10 +282,7 @@ export default function SammenlignPage() {
         </div>
       )}
 
-      <footer className="footer">
-        <span>Karo Healthcare Norway &middot; Prisdata fra Farmasiet, Boots, Vitusapotek, Apotek 1</span>
-        <span>Oppdateres daglig kl. 03:00</span>
-      </footer>
+      <Footer />
     </div>
   )
 }

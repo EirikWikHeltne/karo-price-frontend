@@ -1,59 +1,18 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import Link from 'next/link'
 import * as XLSX from 'xlsx'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, RadarChart, Radar,
   PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area,
 } from 'recharts'
-
-const KNOWN_RETAILER_STYLES = {
-  farmasiet:   { label: 'Farmasiet',   color: '#2563EB' },
-  boots:       { label: 'Boots',       color: '#E11D48' },
-  vitusapotek: { label: 'Vitusapotek', color: '#059669' },
-  apotek1:     { label: 'Apotek 1',    color: '#7C3AED' },
-}
-
-const NON_RETAILER_COLS = new Set([
-  'id', 'produkt', 'merke', 'varenummer', 'kategori',
-  'sist_oppdatert', 'laveste_pris', 'hoyeste_pris', 'dato',
-])
-
-const FALLBACK_COLORS = ['#D97706', '#0891B2', '#BE185D', '#65A30D', '#DC2626', '#9333EA']
-
-function deriveRetailers(data) {
-  if (!data?.length) return []
-  const keys = []
-  const seen = new Set()
-  data.forEach(row => {
-    Object.keys(row).forEach(k => {
-      if (!NON_RETAILER_COLS.has(k) && !seen.has(k)) {
-        const val = row[k]
-        if (val !== null && val !== undefined && !isNaN(Number(val))) {
-          seen.add(k)
-          keys.push(k)
-        }
-      }
-    })
-  })
-  let colorIdx = 0
-  return keys.map(key => ({
-    key,
-    label: KNOWN_RETAILER_STYLES[key]?.label || (key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')),
-    color: KNOWN_RETAILER_STYLES[key]?.color || FALLBACK_COLORS[colorIdx++ % FALLBACK_COLORS.length],
-  }))
-}
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
+import { deriveRetailers } from '@/lib/retailers'
+import { fmt, fmtShort } from '@/lib/format'
+import { CAT_CLASS } from '@/lib/categories'
 
 const CATEGORIES = ['alle', 'Body lotion', 'Paracetamol', 'Mouthwash', 'Intimate', 'Ibuprofen']
-
-const CAT_CLASS = {
-  'Body lotion': 'cat-lotion',
-  'Paracetamol': 'cat-paracetamol',
-  'Mouthwash':   'cat-mouthwash',
-  'Intimate':    'cat-intimate',
-  'Ibuprofen':   'cat-ibuprofen',
-}
 
 const TIME_PERIODS = [
   { label: 'Alle', value: 'all' },
@@ -62,16 +21,6 @@ const TIME_PERIODS = [
   { label: 'Siste 30d', value: '30' },
   { label: 'Siste 90d', value: '90' },
 ]
-
-function fmt(val) {
-  if (val === null || val === undefined) return null
-  return Number(val).toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-function fmtShort(val) {
-  if (val === null || val === undefined) return ''
-  return Number(val).toLocaleString('nb-NO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-}
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
@@ -121,7 +70,6 @@ export default function Page() {
   const [lastUpdated, setLastUpdated] = useState(null)
   const [timePeriod, setTimePeriod]   = useState('all')
   const [showGraphs, setShowGraphs]   = useState(true)
-  const [mobileNav, setMobileNav]     = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -330,36 +278,7 @@ export default function Page() {
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="header-left">
-          <div className="header-logo">KARO PRISER</div>
-          <div className="header-sub">Prisovervåking</div>
-        </div>
-        {lastUpdated && (
-          <div className="header-meta-mobile">
-            <span className="header-dot"></span>
-            {`Oppdatert ${lastUpdated.toLocaleDateString('nb-NO', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}`}
-          </div>
-        )}
-        <button className="mobile-nav-toggle" onClick={() => setMobileNav(!mobileNav)} aria-label="Meny">
-          <span></span><span></span><span></span>
-        </button>
-        <div className={`header-right ${mobileNav ? 'open' : ''}`}>
-          <nav className="header-nav">
-            <span className="nav-link active">Tabell</span>
-            <Link href="/historikk" className="nav-link" onClick={() => setMobileNav(false)}>Historikk</Link>
-            <Link href="/grafer" className="nav-link" onClick={() => setMobileNav(false)}>Grafer</Link>
-            <Link href="/produkter" className="nav-link" onClick={() => setMobileNav(false)}>Produkter</Link>
-            <Link href="/sammenlign" className="nav-link" onClick={() => setMobileNav(false)}>Sammenlign</Link>
-          </nav>
-          <div className="header-meta">
-            <span className="header-dot"></span>
-            {lastUpdated
-              ? `Oppdatert ${lastUpdated.toLocaleDateString('nb-NO', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}`
-              : 'Laster...'}
-          </div>
-        </div>
-      </header>
+      <Header active="/" lastUpdated={lastUpdated} />
 
       <div className="controls">
         <div className="search-wrap">
@@ -646,10 +565,7 @@ export default function Page() {
         )}
       </div>
 
-      <footer className="footer">
-        <span>Karo Healthcare Norway &middot; Prisdata fra Farmasiet, Boots, Vitusapotek, Apotek 1</span>
-        <span>Oppdateres daglig kl. 03:00</span>
-      </footer>
+      <Footer />
     </div>
   )
 }

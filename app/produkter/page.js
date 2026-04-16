@@ -1,15 +1,9 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
-import Link from 'next/link'
 import * as XLSX from 'xlsx'
-
-const CAT_CLASS = {
-  'Body lotion': 'cat-lotion',
-  'Paracetamol': 'cat-paracetamol',
-  'Mouthwash':   'cat-mouthwash',
-  'Intimate':    'cat-intimate',
-  'Ibuprofen':   'cat-ibuprofen',
-}
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
+import { CAT_CLASS } from '@/lib/categories'
 
 export default function ProdukterPage() {
   const [data, setData]         = useState([])
@@ -18,7 +12,6 @@ export default function ProdukterPage() {
   const [kategori, setKategori] = useState('alle')
   const [sortCol, setSortCol]   = useState('kategori')
   const [sortDir, setSortDir]   = useState('asc')
-  const [mobileNav, setMobileNav] = useState(false)
 
   useEffect(() => {
     fetch('/api/produkter', { cache: 'no-store' })
@@ -95,24 +88,7 @@ export default function ProdukterPage() {
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="header-left">
-          <div className="header-logo">KARO PRISER</div>
-          <div className="header-sub">Prisovervåking</div>
-        </div>
-        <button className="mobile-nav-toggle" onClick={() => setMobileNav(!mobileNav)} aria-label="Meny">
-          <span></span><span></span><span></span>
-        </button>
-        <div className={`header-right ${mobileNav ? 'open' : ''}`}>
-          <nav className="header-nav">
-            <Link href="/" className="nav-link" onClick={() => setMobileNav(false)}>Tabell</Link>
-            <Link href="/historikk" className="nav-link" onClick={() => setMobileNav(false)}>Historikk</Link>
-            <Link href="/grafer" className="nav-link" onClick={() => setMobileNav(false)}>Grafer</Link>
-            <span className="nav-link active">Produkter</span>
-            <Link href="/sammenlign" className="nav-link" onClick={() => setMobileNav(false)}>Sammenlign</Link>
-          </nav>
-        </div>
-      </header>
+      <Header active="/produkter" showLastUpdated={false} />
 
       <div className="controls">
         <div className="search-wrap">
@@ -235,10 +211,7 @@ export default function ProdukterPage() {
         )}
       </div>
 
-      <footer className="footer">
-        <span>Karo Healthcare Norway · Produkter som overvåkes</span>
-        <span>Oppdateres daglig kl. 03:00</span>
-      </footer>
+      <Footer left="Karo Healthcare Norway \u00b7 Produkter som overvåkes" />
     </div>
   )
 }
