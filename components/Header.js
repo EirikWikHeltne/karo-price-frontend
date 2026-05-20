@@ -3,11 +3,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 
 const NAV_ITEMS = [
-  { href: '/',           label: 'Tabell' },
-  { href: '/historikk',  label: 'Historikk' },
-  { href: '/grafer',     label: 'Grafer' },
-  { href: '/produkter',  label: 'Produkter' },
-  { href: '/sammenlign', label: 'Sammenlign' },
+  { href: '/',                    label: 'Tabell' },
+  { href: '/historikk',           label: 'Historikk' },
+  { href: '/kategori-historikk',  label: 'Kategoritrend' },
+  { href: '/grafer',              label: 'Grafer' },
+  { href: '/produkter',           label: 'Produkter' },
+  { href: '/sammenlign',          label: 'Sammenlign' },
 ]
 
 function formatUpdated(date) {
