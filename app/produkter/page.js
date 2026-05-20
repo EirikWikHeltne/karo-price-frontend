@@ -211,7 +211,7 @@ export default function ProdukterPage() {
         )}
       </div>
 
-      <Footer left="Karo Healthcare Norway \u00b7 Produkter som overvåkes" />
+      <Footer left={'Karo Healthcare Norway \u00b7 Produkter som overvåkes'} />
     </div>
   )
 }
