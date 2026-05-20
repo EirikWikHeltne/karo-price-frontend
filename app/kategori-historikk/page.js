@@ -142,7 +142,7 @@ export default function KategoriHistorikkPage() {
     return categories.map(cat => {
       const rows = data
         .filter(r => r.kategori === cat && r[retailerKey] != null)
-        .sort((a, b) => a.dato.localeCompare(b.dato))
+        .sort((a, b) => (a.dato || '').localeCompare(b.dato || ''))
       if (!rows.length) {
         return { kategori: cat, current: null, first: null, change: null, changePct: null, min: null, max: null, points: 0 }
       }
