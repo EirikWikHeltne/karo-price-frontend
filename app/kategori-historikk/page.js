@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import * as XLSX from 'xlsx'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
@@ -179,6 +180,52 @@ export default function KategoriHistorikkPage() {
 
   const onlyOneDate = compareChart.length === 1
 
+  function downloadExcel() {
+    if (!data.length) return
+
+    // Sheet 1: per-category summary stats for the selected retailer
+    const summaryRows = summary.map(s => ({
+      Kategori: s.kategori,
+      'Antall produkter (nå)': s.antall ?? null,
+      Start: s.first,
+      'Nå': s.current,
+      Endring: s.change,
+      'Endring %': s.changePct != null ? +s.changePct.toFixed(2) : null,
+      Min: s.min,
+      Maks: s.max,
+      Datapunkter: s.points,
+    }))
+
+    // Sheet 2: wide trend — one row per date, one column per category, using
+    // whichever retailer (or "snitt") the user has selected.
+    const trendRows = compareChart.map(row => {
+      const obj = { Dato: row.dato }
+      categories.forEach(cat => { obj[cat] = row[cat] ?? null })
+      return obj
+    })
+
+    // Sheet 3: long format — one row per (date, category) with every retailer
+    // plus the cross-retailer mean.
+    const detailRows = data.map(row => {
+      const obj = {
+        Dato: row.dato,
+        Kategori: row.kategori,
+        'Antall produkter': row.antall ?? null,
+      }
+      retailers.forEach(r => { obj[r.label] = row[r.key] ?? null })
+      obj['Snitt'] = row.snitt ?? null
+      return obj
+    })
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Oppsummering')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trendRows), 'Trend')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows), 'Per kategori og apotek')
+
+    const periode = dager === 0 ? 'alt' : `${dager}d`
+    XLSX.writeFile(wb, `karo-kategoritrend-${periode}-${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
   return (
     <div className="app">
       <Header active="/kategori-historikk" lastUpdated={lastUpdated} />
@@ -206,6 +253,13 @@ export default function KategoriHistorikkPage() {
         </select>
         <div className="controls-right">
           <span className="count-badge">{categories.length} kategorier</span>
+          <button
+            className="btn-excel"
+            onClick={downloadExcel}
+            disabled={loading || !data.length}
+          >
+            Last ned Excel
+          </button>
         </div>
       </div>
 
