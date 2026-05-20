@@ -8,6 +8,11 @@ const PRICE_VAL_COLS = ['pris', 'price', 'verdi', 'value']
 const NON_PRICE_COLS = new Set([
   'id', 'produkt', 'merke', 'varenummer', 'kategori',
   'sist_oppdatert', 'laveste_pris', 'hoyeste_pris', 'dato',
+  // Long-format markers — if pivot ever fails to fire, don't let these
+  // get picked up as retailer columns.
+  ...RETAILER_ID_COLS, ...PRICE_VAL_COLS,
+  // Synthetic aggregate fields we emit ourselves.
+  'snitt', 'antall',
 ])
 
 function normalizeRetailerKey(name) {
@@ -25,9 +30,12 @@ function normalizeRetailerKey(name) {
  */
 function pivotIfNeeded(rows) {
   if (!rows?.length) return rows
+  // Column existence is the right signal (a column can be present but null on
+  // some rows); checking `!= null` on just the first row missed long-format
+  // tables when row 0 happened to have a null retailer id.
   const first = rows[0]
-  const retailerCol = RETAILER_ID_COLS.find(c => first[c] != null)
-  const priceCol = PRICE_VAL_COLS.find(c => first[c] != null)
+  const retailerCol = RETAILER_ID_COLS.find(c => c in first)
+  const priceCol = PRICE_VAL_COLS.find(c => c in first)
   if (!retailerCol || !priceCol) return rows
 
   const grouped = {}
@@ -89,14 +97,16 @@ function aggregateByCategoryAndDate(rows) {
   return Object.values(grouped)
     .map(g => {
       const entry = { dato: g.dato, kategori: g.kategori, antall: g.products.size }
-      let allSum = 0
-      let allCount = 0
+      const retailerMeans = []
       Object.keys(g.sums).forEach(rk => {
-        entry[rk] = +(g.sums[rk] / g.counts[rk]).toFixed(2)
-        allSum += g.sums[rk]
-        allCount += g.counts[rk]
+        const mean = g.sums[rk] / g.counts[rk]
+        entry[rk] = +mean.toFixed(2)
+        retailerMeans.push(mean)
       })
-      entry.snitt = allCount > 0 ? +(allSum / allCount).toFixed(2) : null
+      // Mean-of-means so retailers with more product coverage don't dominate.
+      entry.snitt = retailerMeans.length
+        ? +(retailerMeans.reduce((s, v) => s + v, 0) / retailerMeans.length).toFixed(2)
+        : null
       return entry
     })
     .sort((a, b) =>
