@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 const RETAILER_ID_COLS = ['kilde', 'apotek', 'kjede', 'retailer', 'butikk', 'pharmacy']
 const PRICE_VAL_COLS = ['pris', 'price', 'verdi', 'value']
 const NON_PRICE_COLS = new Set([
-  'id', 'produkt', 'merke', 'varenummer', 'kategori',
+  'id', 'produktid', 'produkt', 'merke', 'varenummer', 'kategori',
   'sist_oppdatert', 'laveste_pris', 'hoyeste_pris', 'dato',
   // Long-format markers — if pivot ever fails to fire, don't let these
   // get picked up as retailer columns.
