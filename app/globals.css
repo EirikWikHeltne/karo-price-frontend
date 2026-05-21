@@ -10,7 +10,8 @@
   --text: #1A1916;
   --text-muted: #7A786E;
   --text-faint: #B0ADA3;
-  --accent: #1A1916;
+  --accent: #2F4858;
+  --accent-soft: rgba(47, 72, 88, 0.18);
   --green: #1D6A3A;
   --green-bg: #EBF5EF;
   --red: #C0392B;
@@ -34,6 +35,23 @@ body {
 }
 
 h1, h2, h3, .syne { font-family: 'Syne', sans-serif; }
+
+/* Keyboard focus — visible ring for everything interactive */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+/* Inputs already signal focus via border-color; replace outline with a soft ring */
+.search-input:focus-visible,
+.brand-select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* Header nav lives on a dark background — light ring instead */
+.nav-link:focus-visible {
+  outline-color: rgba(255, 255, 255, 0.8);
+}
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -137,7 +155,7 @@ h1, h2, h3, .syne { font-family: 'Syne', sans-serif; }
   white-space: nowrap;
 }
 .tab:hover { border-color: var(--border-strong); color: var(--text); }
-.tab.active { background: var(--text); color: white; border-color: var(--text); }
+.tab.active { background: var(--accent); color: white; border-color: var(--accent); }
 
 .tab-toggle {
   margin-left: auto;
@@ -167,19 +185,18 @@ h1, h2, h3, .syne { font-family: 'Syne', sans-serif; }
 
 .btn-excel {
   padding: 0.4rem 0.9rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 3px;
   font-family: 'DM Mono', monospace;
   font-size: 0.75rem;
   cursor: pointer;
-  background: var(--green-bg);
-  color: var(--green);
-  border-color: var(--green);
+  background: var(--surface);
+  color: var(--text);
   transition: all 0.1s;
   white-space: nowrap;
 }
-.btn-excel:hover { background: var(--green); color: white; }
-.btn-excel:disabled { opacity: 0.4; cursor: default; background: var(--bg); color: var(--text-faint); border-color: var(--border); }
+.btn-excel:hover { background: var(--bg); border-color: var(--text-muted); }
+.btn-excel:disabled { opacity: 0.4; cursor: default; background: transparent; color: var(--text-faint); border-color: var(--border); }
 
 /* ---- TIME FILTER BAR ---- */
 .time-filter-bar {
