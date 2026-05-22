@@ -153,7 +153,7 @@ export async function GET(request) {
 
     const { data: fbData } = await fallbackQuery
     if (fbData?.length) {
-      const NON_PRICE_COLS = new Set(['id', 'produkt', 'merke', 'varenummer', 'kategori', 'sist_oppdatert', 'laveste_pris', 'hoyeste_pris'])
+      const NON_PRICE_COLS = new Set(['id', 'produktid', 'produkt', 'merke', 'varenummer', 'kategori', 'sist_oppdatert', 'laveste_pris', 'hoyeste_pris'])
       const rows = fbData.map(row => {
         const entry = {
           dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
