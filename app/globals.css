@@ -281,6 +281,7 @@ td { padding: 0.6rem 0.75rem; font-size: 0.8rem; vertical-align: middle; }
 .cat-mouthwash { background: #E8F5E9; color: #2E7D32; border-color: #A5D6A7; }
 .cat-intimate { background: #FCE4EC; color: #880E4F; border-color: #F48FB1; }
 .cat-ibuprofen { background: #EDE7F6; color: #4527A0; border-color: #CE93D8; }
+.cat-solkrem { background: #FFF8E1; color: #F57C00; border-color: #FFE082; }
 
 /* ---- STATES ---- */
 .empty { text-align: center; padding: 4rem; color: var(--text-muted); }

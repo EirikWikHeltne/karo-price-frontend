@@ -12,7 +12,7 @@ import { deriveRetailers } from '@/lib/retailers'
 import { fmt, fmtShort } from '@/lib/format'
 import { CAT_CLASS } from '@/lib/categories'
 
-const CATEGORIES = ['alle', 'Body lotion', 'Paracetamol', 'Mouthwash', 'Intimate', 'Ibuprofen']
+const CATEGORIES = ['alle', 'Body lotion', 'Paracetamol', 'Mouthwash', 'Intimate', 'Ibuprofen', 'Solkrem']
 
 const TIME_PERIODS = [
   { label: 'Alle', value: 'all' },
