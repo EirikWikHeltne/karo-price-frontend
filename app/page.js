@@ -12,8 +12,6 @@ import { deriveRetailers } from '@/lib/retailers'
 import { fmt, fmtShort } from '@/lib/format'
 import { CAT_CLASS } from '@/lib/categories'
 
-const CATEGORIES = ['alle', 'Body lotion', 'Paracetamol', 'Mouthwash', 'Intimate', 'Ibuprofen', 'Solkrem']
-
 const TIME_PERIODS = [
   { label: 'Alle', value: 'all' },
   { label: 'Siste 24t', value: '1' },
@@ -70,6 +68,7 @@ export default function Page() {
   const [lastUpdated, setLastUpdated] = useState(null)
   const [timePeriod, setTimePeriod]   = useState('all')
   const [showGraphs, setShowGraphs]   = useState(true)
+  const [categories, setCategories]   = useState([])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -122,6 +121,20 @@ export default function Page() {
   const brands = useMemo(() => {
     if (!data.length) return []
     return [...new Set(data.map(r => r.merke).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  }, [data])
+
+  // Build the category tabs from the data itself so new categories appear
+  // automatically. The list only grows, so server-side filtering by category
+  // (which returns a single category) never removes the other tabs.
+  useEffect(() => {
+    if (!data.length) return
+    setCategories(prev => {
+      const set = new Set(prev)
+      data.forEach(r => { if (r.kategori) set.add(r.kategori) })
+      const next = [...set].sort((a, b) => a.localeCompare(b))
+      if (next.length === prev.length && next.every((c, i) => c === prev[i])) return prev
+      return next
+    })
   }, [data])
 
   // Filter by time period based on sist_oppdatert
@@ -291,7 +304,7 @@ export default function Page() {
           />
         </div>
         <div className="filter-tabs">
-          {CATEGORIES.map(k => (
+          {['alle', ...categories].map(k => (
             <button
               key={k}
               className={`tab ${kategori === k ? 'active' : ''}`}

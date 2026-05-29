@@ -8,6 +8,46 @@ const RETAILER_ID_COLS = ['kilde', 'apotek', 'kjede', 'retailer', 'butikk', 'pha
 // Possible column names for the price value in a normalized/long table
 const PRICE_VAL_COLS = ['pris', 'price', 'verdi', 'value']
 
+// Columns in prissammenligning that are not per-retailer prices
+const NON_PRICE_COLS = new Set([
+  'id', 'produktid', 'produkt', 'merke', 'varenummer', 'kategori',
+  'sist_oppdatert', 'laveste_pris', 'hoyeste_pris',
+])
+
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate',
+  'Pragma': 'no-cache',
+}
+
+// Convert current prices from prissammenligning into history-like rows
+function toHistoryRows(rows) {
+  return rows.map(row => {
+    const entry = {
+      dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      varenummer: row.varenummer,
+      produkt: row.produkt,
+    }
+    Object.keys(row).forEach(k => {
+      if (!NON_PRICE_COLS.has(k)) entry[k] = row[k]
+    })
+    return entry
+  })
+}
+
+// Fall back to current prices from prissammenligning when prishistorikk is
+// unavailable or empty. Returns history-like rows, or null if nothing matches.
+async function fetchCurrentPriceFallback(supabase, { varenummer, produkt }) {
+  let query = supabase.from('prissammenligning').select('*')
+  if (varenummer) {
+    query = query.eq('varenummer', varenummer)
+  } else if (produkt) {
+    const safe = produkt.replace(/[(),.\\*"%_]/g, '')
+    if (safe) query = query.ilike('produkt', `%${safe}%`)
+  }
+  const { data } = await query
+  return data?.length ? toHistoryRows(data) : null
+}
+
 /**
  * Detect if data is in long/normalized format (one row per retailer per date)
  * and pivot to wide format (one row per date, retailer prices as columns).
@@ -91,47 +131,15 @@ export async function GET(request) {
     // If the table doesn't exist, fall back to current prices from prissammenligning
     if (error.code === '42P01' || error.message?.includes('does not exist')) {
       try {
-        let fallbackQuery = supabase
-          .from('prissammenligning')
-          .select('*')
-
-        if (varenummer) {
-          fallbackQuery = fallbackQuery.eq('varenummer', varenummer)
-        } else if (produkt) {
-          const safe = produkt.replace(/[(),.\\*"%_]/g, '')
-          if (safe) fallbackQuery = fallbackQuery.ilike('produkt', `%${safe}%`)
-        }
-
-        const { data: fbData } = await fallbackQuery
-        if (fbData?.length) {
-          // Convert current prices to history-like format
-          const NON_PRICE_COLS = new Set(['id', 'produktid', 'produkt', 'merke', 'varenummer', 'kategori', 'sist_oppdatert', 'laveste_pris', 'hoyeste_pris'])
-          const rows = fbData.map(row => {
-            const entry = {
-              dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-              varenummer: row.varenummer,
-              produkt: row.produkt,
-            }
-            Object.keys(row).forEach(k => {
-              if (!NON_PRICE_COLS.has(k)) entry[k] = row[k]
-            })
-            return entry
-          })
-          return Response.json(rows, {
-            headers: {
-              'Cache-Control': 'no-store, no-cache, must-revalidate',
-              'Pragma': 'no-cache',
-            },
-          })
+        const rows = await fetchCurrentPriceFallback(supabase, { varenummer, produkt })
+        if (rows) {
+          return Response.json(rows, { headers: NO_CACHE_HEADERS })
         }
       } catch (_) { /* ignore fallback errors */ }
 
       return Response.json(
         { error: 'Prishistorikk-tabellen finnes ikke ennå', code: 'TABLE_NOT_FOUND' },
-        {
-          status: 404,
-          headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
-        }
+        { status: 404, headers: NO_CACHE_HEADERS }
       )
     }
     console.error('Supabase error:', error)
@@ -140,45 +148,12 @@ export async function GET(request) {
 
   // If prishistorikk exists but has no data for this product, fall back to prissammenligning
   if (!data?.length) {
-    let fallbackQuery = supabase
-      .from('prissammenligning')
-      .select('*')
-
-    if (varenummer) {
-      fallbackQuery = fallbackQuery.eq('varenummer', varenummer)
-    } else if (produkt) {
-      const safe = produkt.replace(/[(),.\\*"%_]/g, '')
-      if (safe) fallbackQuery = fallbackQuery.ilike('produkt', `%${safe}%`)
-    }
-
-    const { data: fbData } = await fallbackQuery
-    if (fbData?.length) {
-      const NON_PRICE_COLS = new Set(['id', 'produktid', 'produkt', 'merke', 'varenummer', 'kategori', 'sist_oppdatert', 'laveste_pris', 'hoyeste_pris'])
-      const rows = fbData.map(row => {
-        const entry = {
-          dato: row.sist_oppdatert?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-          varenummer: row.varenummer,
-          produkt: row.produkt,
-        }
-        Object.keys(row).forEach(k => {
-          if (!NON_PRICE_COLS.has(k)) entry[k] = row[k]
-        })
-        return entry
-      })
-      return Response.json(rows, {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-          'Pragma': 'no-cache',
-        },
-      })
+    const rows = await fetchCurrentPriceFallback(supabase, { varenummer, produkt })
+    if (rows) {
+      return Response.json(rows, { headers: NO_CACHE_HEADERS })
     }
   }
 
   const normalized = maybeNormalize(data)
-  return Response.json(normalized, {
-    headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Pragma': 'no-cache',
-    },
-  })
+  return Response.json(normalized, { headers: NO_CACHE_HEADERS })
 }
