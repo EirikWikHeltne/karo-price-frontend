@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { href: '/',                    label: 'Tabell' },
   { href: '/historikk',           label: 'Historikk' },
   { href: '/kategori-historikk',  label: 'Kategoritrend' },
+  { href: '/solpleie',            label: 'Solpleie' },
   { href: '/grafer',              label: 'Grafer' },
   { href: '/produkter',           label: 'Produkter' },
   { href: '/sammenlign',          label: 'Sammenlign' },
