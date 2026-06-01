@@ -1,16 +1,20 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import * as XLSX from 'xlsx'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell,
+} from 'recharts'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
 
 // "Solpleie" dekker solkrem, after sun og beslektede kategorier. Vi matcher
-// alle kategorier som inneholder "sol" slik at kartet fanger opp nye
-// kategorinavn automatisk (Solkrem, Solpleie, After sun osv.).
+// alle kategorier som inneholder "sol" eller "sun" (norsk + engelsk) slik at
+// kartet fanger opp ulike kategorinavn automatisk.
 function isSunCare(kategori) {
-  return typeof kategori === 'string' && /sol/i.test(kategori)
+  return typeof kategori === 'string' && /sol|sun/i.test(kategori)
 }
 
 // Beregn nøkkeltall per SKU på tvers av kjedene.
@@ -33,14 +37,31 @@ function analyzeRow(row, retailers) {
   return { min, max, avg, spread, spreadPct, cheapest }
 }
 
+function ProductAvgTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const p = payload[0].payload
+  return (
+    <div className="chart-tooltip">
+      <div className="chart-tooltip-label">{p.fullName}</div>
+      <div className="chart-tooltip-row">Snittpris: {fmt(p.avg)} kr</div>
+      {p.min != null && (
+        <div className="chart-tooltip-row">Lavest–høyest: {fmt(p.min)}–{fmt(p.max)} kr</div>
+      )}
+    </div>
+  )
+}
+
+const MAX_CHART_BARS = 40
+
 export default function SolpleiePage() {
   const [data, setData]       = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
   const [search, setSearch]   = useState('')
   const [merke, setMerke]     = useState('alle')
-  const [sortCol, setSortCol] = useState('produkt')
-  const [sortDir, setSortDir] = useState('asc')
+  const [scope, setScope]     = useState('solpleie') // 'solpleie' | 'alle'
+  const [sortCol, setSortCol] = useState('snitt')
+  const [sortDir, setSortDir] = useState('desc')
   const [lastUpdated, setLastUpdated] = useState(null)
 
   useEffect(() => {
@@ -72,20 +93,28 @@ export default function SolpleiePage() {
     load()
   }, [])
 
-  // Kun solpleie-produkter
-  const sunProducts = useMemo(() => data.filter(r => isSunCare(r.kategori)), [data])
+  // Finnes det i det hele tatt solpleie-kategorier i datagrunnlaget?
+  const hasSunCare = useMemo(() => data.some(r => isSunCare(r.kategori)), [data])
 
-  const retailers = useMemo(() => deriveRetailers(sunProducts), [sunProducts])
+  // Velg produktgrunnlag ut fra scope. Faller automatisk tilbake til alle
+  // produkter dersom det ikke finnes noen solpleie-kategori i dataene, slik at
+  // siden aldri blir stående tom.
+  const baseProducts = useMemo(() => {
+    if (scope === 'solpleie' && hasSunCare) return data.filter(r => isSunCare(r.kategori))
+    return data
+  }, [data, scope, hasSunCare])
+
+  const retailers = useMemo(() => deriveRetailers(baseProducts), [baseProducts])
 
   const brands = useMemo(() => {
-    return [...new Set(sunProducts.map(r => r.merke).filter(Boolean))]
+    return [...new Set(baseProducts.map(r => r.merke).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b))
-  }, [sunProducts])
+  }, [baseProducts])
 
   // Berik hver rad med analysefelter
   const enriched = useMemo(() => {
-    return sunProducts.map(row => ({ ...row, _calc: analyzeRow(row, retailers) }))
-  }, [sunProducts, retailers])
+    return baseProducts.map(row => ({ ...row, _calc: analyzeRow(row, retailers) }))
+  }, [baseProducts, retailers])
 
   const filtered = useMemo(() => {
     let d = enriched
@@ -98,15 +127,12 @@ export default function SolpleiePage() {
         (r.varenummer || '').toLowerCase().includes(s)
       )
     }
+    const calcCols = { laveste: 'min', hoyeste: 'max', snitt: 'avg', spread: 'spread', spreadPct: 'spreadPct' }
     return [...d].sort((a, b) => {
-      // Beregnede kolonner ligger under _calc
-      const calcCols = { laveste: 'min', hoyeste: 'max', snitt: 'avg', spread: 'spread', spreadPct: 'spreadPct' }
       let av, bv
       if (calcCols[sortCol]) {
         av = a._calc[calcCols[sortCol]]
         bv = b._calc[calcCols[sortCol]]
-      } else if (retailers.some(r => r.key === sortCol)) {
-        av = a[sortCol]; bv = b[sortCol]
       } else {
         av = a[sortCol]; bv = b[sortCol]
       }
@@ -115,41 +141,54 @@ export default function SolpleiePage() {
       if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
       return sortDir === 'asc' ? av - bv : bv - av
     })
-  }, [enriched, merke, search, sortCol, sortDir, retailers])
+  }, [enriched, merke, search, sortCol, sortDir])
 
-  // Nøkkeltall for solpleie-utvalget
+  // Data for snittpris-grafen: ett produkt per stolpe, sortert på snittpris.
+  const avgChartData = useMemo(() => {
+    const withAvg = filtered
+      .filter(r => r._calc.avg != null)
+      .map(r => ({
+        fullName: r.produkt,
+        name: (r.produkt || '').length > 32 ? r.produkt.slice(0, 32) + '…' : (r.produkt || ''),
+        avg: +r._calc.avg.toFixed(2),
+        min: r._calc.min,
+        max: r._calc.max,
+        color: r._calc.cheapest?.color || 'var(--accent)',
+      }))
+      .sort((a, b) => b.avg - a.avg)
+    return { rows: withAvg.slice(0, MAX_CHART_BARS), total: withAvg.length }
+  }, [filtered])
+
+  // Nøkkeltall for utvalget
   const stats = useMemo(() => {
     if (!filtered.length) return null
     const withPrices = filtered.filter(r => r._calc.min != null)
+    const avgPrice = withPrices.length
+      ? withPrices.reduce((s, r) => s + r._calc.avg, 0) / withPrices.length : 0
     const avgLow = withPrices.length
       ? withPrices.reduce((s, r) => s + r._calc.min, 0) / withPrices.length : 0
     const spreads = withPrices.filter(r => r._calc.spread != null).map(r => r._calc.spread)
     const avgSpread = spreads.length ? spreads.reduce((s, v) => s + v, 0) / spreads.length : 0
 
-    // Hvilken kjede er billigst flest ganger
     const cheapestCounts = {}
     retailers.forEach(r => { cheapestCounts[r.key] = 0 })
-    withPrices.forEach(r => {
-      if (r._calc.cheapest) cheapestCounts[r._calc.cheapest.key]++
-    })
-    let topCheapest = null
-    let topCount = 0
+    withPrices.forEach(r => { if (r._calc.cheapest) cheapestCounts[r._calc.cheapest.key]++ })
+    let topCheapest = null, topCount = 0
     retailers.forEach(r => {
       if (cheapestCounts[r.key] > topCount) { topCount = cheapestCounts[r.key]; topCheapest = r }
     })
 
-    // Dekning per kjede
     const coverage = retailers.map(r => ({
       ...r,
       count: filtered.filter(row => row[r.key] !== null && row[r.key] !== undefined).length,
     }))
 
-    return { skus: filtered.length, avgLow, avgSpread, topCheapest, topCount, coverage }
+    return { skus: filtered.length, avgPrice, avgLow, avgSpread, topCheapest, topCount, coverage }
   }, [filtered, retailers])
 
   function handleSort(col) {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortCol(col); setSortDir('asc') }
+    else { setSortCol(col); setSortDir(col === 'produkt' || col === 'varenummer' ? 'asc' : 'desc') }
   }
 
   const renderSortIcon = (col) => {
@@ -157,8 +196,9 @@ export default function SolpleiePage() {
     return <span>{sortDir === 'asc' ? '↑' : '↓'}</span>
   }
 
+  const scopeLabel = scope === 'solpleie' && hasSunCare ? 'solpleie' : 'alle produkter'
+
   function downloadExcel() {
-    // Ark 1: priskart per SKU med rådata (tall) klare for videre analyse
     const priskart = filtered.map(row => {
       const c = row._calc
       const obj = {
@@ -180,7 +220,6 @@ export default function SolpleiePage() {
       return obj
     })
 
-    // Ark 2: oppsummering per kjede
     const oppsummering = retailers.map(r => {
       const vals = filtered.map(row => row[r.key]).filter(v => v != null).map(Number)
       const billigst = filtered.filter(row => row._calc.cheapest?.key === r.key).length
@@ -197,7 +236,8 @@ export default function SolpleiePage() {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(priskart), 'Priskart per SKU')
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(oppsummering), 'Oppsummering per kjede')
-    XLSX.writeFile(wb, `karo-solpleie-priskart-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    const tag = scope === 'solpleie' && hasSunCare ? 'solpleie' : 'alle'
+    XLSX.writeFile(wb, `karo-${tag}-priskart-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
   return (
@@ -207,7 +247,7 @@ export default function SolpleiePage() {
       <div className="compare-intro">
         <h2 className="compare-title">Priskart – Solpleie</h2>
         <p className="compare-desc">
-          Komplett prisoversikt per SKU for solpleie på tvers av apotekkjedene. Last ned til Excel for videre analyse.
+          Prisoversikt per SKU på tvers av apotekkjedene, med graf for å sammenligne gjennomsnittspris. Last ned til Excel for videre analyse.
         </p>
       </div>
 
@@ -220,6 +260,22 @@ export default function SolpleiePage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+        </div>
+        <div className="filter-tabs">
+          <button
+            className={`tab ${scope === 'solpleie' ? 'active' : ''}`}
+            onClick={() => setScope('solpleie')}
+            disabled={!hasSunCare}
+            title={hasSunCare ? '' : 'Ingen solpleie-kategori funnet i dataene'}
+          >
+            Solpleie
+          </button>
+          <button
+            className={`tab ${scope === 'alle' ? 'active' : ''}`}
+            onClick={() => setScope('alle')}
+          >
+            Alle produkter
+          </button>
         </div>
         <select
           className="brand-select"
@@ -241,11 +297,23 @@ export default function SolpleiePage() {
         </div>
       </div>
 
+      {scope === 'solpleie' && !hasSunCare && !loading && data.length > 0 && (
+        <div className="time-filter-bar">
+          <span className="time-filter-label" style={{ color: 'var(--amber, #B45309)' }}>
+            Fant ingen egen solpleie-kategori i dataene – viser alle produkter. Gi beskjed om hva kategorien heter, så låser jeg kartet til den.
+          </span>
+        </div>
+      )}
+
       {stats && !loading && (
         <div className="stats-bar">
           <div className="stat">
             <span className="stat-label">SKU-er</span>
             <span className="stat-value">{stats.skus}</span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">Snittpris</span>
+            <span className="stat-value">{fmt(stats.avgPrice)} kr</span>
           </div>
           <div className="stat">
             <span className="stat-label">Snitt laveste pris</span>
@@ -272,6 +340,46 @@ export default function SolpleiePage() {
         </div>
       )}
 
+      {/* Snittpris-graf: alle produkter sammenlignet */}
+      {!loading && avgChartData.rows.length > 0 && (
+        <div className="charts-grid">
+          <div className="chart-card chart-card-wide">
+            <h3 className="chart-title">Gjennomsnittspris per produkt</h3>
+            <p className="chart-desc">
+              Snittpris på tvers av kjedene for {scopeLabel}
+              {avgChartData.total > avgChartData.rows.length
+                ? ` — viser de ${avgChartData.rows.length} dyreste av ${avgChartData.total}`
+                : ` (${avgChartData.rows.length} produkter)`}.
+              Fargen viser hvilken kjede som er billigst.
+            </p>
+            <ResponsiveContainer width="100%" height={Math.max(260, avgChartData.rows.length * 26)}>
+              <BarChart data={avgChartData.rows} layout="vertical" margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 11, fontFamily: 'DM Mono' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={v => `${v} kr`}
+                />
+                <YAxis
+                  dataKey="name"
+                  type="category"
+                  width={190}
+                  tick={{ fontSize: 10, fontFamily: 'DM Mono' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<ProductAvgTooltip />} cursor={{ fill: 'var(--bg)' }} />
+                <Bar dataKey="avg" name="Snittpris" radius={[0, 4, 4, 0]}>
+                  {avgChartData.rows.map((e, i) => <Cell key={i} fill={e.color} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       <div className="table-wrap">
         {loading ? (
           <div className="loading">
@@ -285,11 +393,9 @@ export default function SolpleiePage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="empty">
-            <div className="empty-icon">&#9728;</div>
+            <div className="empty-icon">&#9678;</div>
             <div className="empty-text">
-              {sunProducts.length === 0
-                ? 'Ingen solpleie-produkter funnet i datagrunnlaget'
-                : 'Ingen SKU-er matcher søket'}
+              {data.length === 0 ? 'Ingen produkter i datagrunnlaget' : 'Ingen SKU-er matcher søket'}
             </div>
           </div>
         ) : (
