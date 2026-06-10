@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
-import * as XLSX from 'xlsx'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { CAT_CLASS } from '@/lib/categories'
@@ -70,7 +69,9 @@ export default function ProdukterPage() {
     return <span>{sortDir === 'asc' ? '\u2191' : '\u2193'}</span>
   }
 
-  function downloadExcel() {
+  async function downloadExcel() {
+    // Lazy-load xlsx så det store biblioteket holdes ute av siden til det trengs
+    const XLSX = await import('xlsx')
     const rows = filtered.map(row => ({
       Produkt: row.produkt,
       Merke: row.merke,

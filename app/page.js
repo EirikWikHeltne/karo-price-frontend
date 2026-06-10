@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import * as XLSX from 'xlsx'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, RadarChart, Radar,
@@ -11,6 +10,7 @@ import Footer from '@/components/Footer'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt, fmtShort } from '@/lib/format'
 import { CAT_CLASS } from '@/lib/categories'
+import { useLastUpdated } from '@/lib/useLastUpdated'
 
 const TIME_PERIODS = [
   { label: 'Alle', value: 'all' },
@@ -65,10 +65,11 @@ export default function Page() {
   const [merke, setMerke]       = useState('alle')
   const [sortCol, setSortCol]   = useState('merke')
   const [sortDir, setSortDir]   = useState('asc')
-  const [lastUpdated, setLastUpdated] = useState(null)
   const [timePeriod, setTimePeriod]   = useState('all')
   const [showGraphs, setShowGraphs]   = useState(true)
   const [categories, setCategories]   = useState([])
+
+  const lastUpdated = useLastUpdated(data)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -78,31 +79,12 @@ export default function Page() {
       if (kategori !== 'alle') params.set('kategori', kategori)
       if (search) params.set('search', search)
 
-      const [res, updRes] = await Promise.all([
-        fetch(`/api/priser?${params}`, { cache: 'no-store' }),
-        fetch('/api/siste-oppdatering', { cache: 'no-store' }).catch(() => null),
-      ])
-
+      const res = await fetch(`/api/priser?${params}`, { cache: 'no-store' })
       if (!res.ok) {
         throw new Error(`Server error: ${res.status}`)
       }
       const json = await res.json()
       setData(json || [])
-
-      if (updRes?.ok) {
-        try {
-          const { dato } = await updRes.json()
-          if (dato) setLastUpdated(new Date(dato + 'T12:00:00'))
-        } catch (_) {
-          if (json?.length) {
-            const dates = json.map(r => r.sist_oppdatert).filter(Boolean).sort()
-            if (dates.length) setLastUpdated(new Date(dates[dates.length - 1]))
-          }
-        }
-      } else if (json?.length) {
-        const dates = json.map(r => r.sist_oppdatert).filter(Boolean).sort()
-        if (dates.length) setLastUpdated(new Date(dates[dates.length - 1]))
-      }
     } catch(e) {
       console.error(e)
       setError('Kunne ikke hente priser. Prøv igjen.')
@@ -266,7 +248,9 @@ export default function Page() {
     return <span>{sortDir === 'asc' ? '↑' : '↓'}</span>
   }
 
-  function downloadExcel() {
+  async function downloadExcel() {
+    // Lazy-load xlsx så det store biblioteket holdes ute av siden til det trengs
+    const XLSX = await import('xlsx')
     const rows = sorted.map(row => {
       const prices = retailers.map(r => row[r.key]).filter(v => v != null)
       const min = prices.length ? Math.min(...prices) : null

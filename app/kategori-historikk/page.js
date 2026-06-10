@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import * as XLSX from 'xlsx'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
@@ -10,6 +9,7 @@ import Footer from '@/components/Footer'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
 import { CAT_CLASS } from '@/lib/categories'
+import { useLastUpdated } from '@/lib/useLastUpdated'
 
 const TIME_RANGES = [
   { label: '7 dager', value: 7 },
@@ -49,7 +49,8 @@ export default function KategoriHistorikkPage() {
   const [dager, setDager]                     = useState(90)
   const [retailerKey, setRetailerKey]         = useState('snitt')
   const [hiddenCategories, setHiddenCategories] = useState(() => new Set())
-  const [lastUpdated, setLastUpdated]         = useState(null)
+
+  const lastUpdated = useLastUpdated()
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -58,10 +59,7 @@ export default function KategoriHistorikkPage() {
     try {
       const params = new URLSearchParams()
       params.set('dager', String(dager))
-      const [res, updRes] = await Promise.all([
-        fetch(`/api/kategori-historikk?${params}`, { cache: 'no-store' }),
-        fetch('/api/siste-oppdatering', { cache: 'no-store' }).catch(() => null),
-      ])
+      const res = await fetch(`/api/kategori-historikk?${params}`, { cache: 'no-store' })
 
       if (!res.ok && res.status !== 404) {
         throw new Error(`Server error: ${res.status}`)
@@ -75,13 +73,6 @@ export default function KategoriHistorikkPage() {
       } else {
         setError(json?.error || 'Kunne ikke hente data')
         setData([])
-      }
-
-      if (updRes?.ok) {
-        try {
-          const { dato } = await updRes.json()
-          if (dato) setLastUpdated(new Date(dato + 'T12:00:00'))
-        } catch (_) { /* noop */ }
       }
     } catch (e) {
       console.error(e)
@@ -180,8 +171,10 @@ export default function KategoriHistorikkPage() {
 
   const onlyOneDate = compareChart.length === 1
 
-  function downloadExcel() {
+  async function downloadExcel() {
     if (!data.length) return
+    // Lazy-load xlsx så det store biblioteket holdes ute av siden til det trengs
+    const XLSX = await import('xlsx')
 
     // Sheet 1: per-category summary stats for the selected retailer
     const summaryRows = summary.map(s => ({

@@ -1,65 +1,8 @@
 import { getSupabase } from '@/lib/supabaseServer'
 import { fetchAllRows } from '@/lib/fetchAllRows'
+import { pivotIfNeeded, NON_PRICE_COLS } from '@/lib/pivot'
 
 export const dynamic = 'force-dynamic'
-
-const RETAILER_ID_COLS = ['kilde', 'apotek', 'kjede', 'retailer', 'butikk', 'pharmacy']
-const PRICE_VAL_COLS = ['pris', 'price', 'verdi', 'value']
-const NON_PRICE_COLS = new Set([
-  'id', 'produktid', 'produkt', 'merke', 'varenummer', 'kategori',
-  'sist_oppdatert', 'laveste_pris', 'hoyeste_pris', 'dato',
-  // Long-format markers — if pivot ever fails to fire, don't let these
-  // get picked up as retailer columns.
-  ...RETAILER_ID_COLS, ...PRICE_VAL_COLS,
-  // Synthetic aggregate fields we emit ourselves.
-  'snitt', 'antall',
-])
-
-function normalizeRetailerKey(name) {
-  const n = String(name).toLowerCase().trim()
-  if (n.includes('apotek 1') || n === 'apotek1') return 'apotek1'
-  if (n.includes('farmasiet')) return 'farmasiet'
-  if (n.includes('boots')) return 'boots'
-  if (n.includes('vitusapotek') || n.includes('vitus apotek')) return 'vitusapotek'
-  return n.replace(/\s+/g, '_')
-}
-
-/**
- * If history rows are in long/normalized format (one row per retailer per
- * date), pivot to wide format. Otherwise return as-is.
- */
-function pivotIfNeeded(rows) {
-  if (!rows?.length) return rows
-  // Column existence is the right signal (a column can be present but null on
-  // some rows); checking `!= null` on just the first row missed long-format
-  // tables when row 0 happened to have a null retailer id.
-  const first = rows[0]
-  const retailerCol = RETAILER_ID_COLS.find(c => c in first)
-  const priceCol = PRICE_VAL_COLS.find(c => c in first)
-  if (!retailerCol || !priceCol) return rows
-
-  const grouped = {}
-  rows.forEach(row => {
-    const date = row.dato?.slice?.(0, 10) || ''
-    const vn = row.varenummer || ''
-    const key = `${date}|${vn}`
-    if (!grouped[key]) {
-      grouped[key] = {
-        dato: date,
-        varenummer: vn,
-        produkt: row.produkt,
-        kategori: row.kategori,
-        merke: row.merke,
-      }
-    }
-    const rKey = normalizeRetailerKey(row[retailerCol])
-    const price = Number(row[priceCol])
-    if (rKey && !isNaN(price)) {
-      grouped[key][rKey] = price
-    }
-  })
-  return Object.values(grouped)
-}
 
 /**
  * Aggregate rows (one product per row per date) into category averages.

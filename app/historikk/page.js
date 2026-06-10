@@ -8,6 +8,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
+import { useLastUpdated } from '@/lib/useLastUpdated'
 
 const TIME_RANGES = [
   { label: '7 dager', value: 7 },
@@ -45,23 +46,18 @@ export default function HistorikkPage() {
   const [tableNotFound, setTableNotFound] = useState(false)
   const [historyError, setHistoryError] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [lastUpdated, setLastUpdated] = useState(null)
 
-  // Load product list and last updated date
+  const lastUpdated = useLastUpdated(products)
+
+  // Load product list
   useEffect(() => {
-    Promise.all([
-      fetch('/api/produkter', { cache: 'no-store' }).then(r => r.json()).catch(() => []),
-      fetch('/api/siste-oppdatering', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
-    ]).then(([productData, updData]) => {
-      setProducts(productData || [])
-      setLoading(false)
-      if (updData?.dato) {
-        setLastUpdated(new Date(updData.dato + 'T12:00:00'))
-      } else if (productData?.length) {
-        const dates = productData.map(r => r.sist_oppdatert).filter(Boolean).sort()
-        if (dates.length) setLastUpdated(new Date(dates[dates.length - 1]))
-      }
-    })
+    fetch('/api/produkter', { cache: 'no-store' })
+      .then(r => r.json())
+      .catch(() => [])
+      .then(productData => {
+        setProducts(productData || [])
+        setLoading(false)
+      })
   }, [])
 
   // Fetch history when product is selected

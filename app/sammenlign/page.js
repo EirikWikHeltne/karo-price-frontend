@@ -4,14 +4,16 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
+import { useLastUpdated } from '@/lib/useLastUpdated'
 
 export default function SammenlignPage() {
   const [allProducts, setAllProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [basket, setBasket] = useState([])
-  const [lastUpdated, setLastUpdated] = useState(null)
   const [error, setError] = useState(null)
+
+  const lastUpdated = useLastUpdated(allProducts)
 
   useEffect(() => {
     async function load() {
@@ -24,15 +26,6 @@ export default function SammenlignPage() {
         console.error('Failed to fetch products:', e)
         setError('Kunne ikke hente produkter. Prøv igjen.')
       }
-
-      try {
-        const updRes = await fetch('/api/siste-oppdatering', { cache: 'no-store' })
-        if (updRes.ok) {
-          const { dato } = await updRes.json()
-          if (dato) setLastUpdated(new Date(dato + 'T12:00:00'))
-        }
-      } catch (_) {}
-
       setLoading(false)
     }
     load()
