@@ -5,6 +5,7 @@ import Link from 'next/link'
 const NAV_ITEMS = [
   { href: '/',                    label: 'Tabell' },
   { href: '/historikk',           label: 'Historikk' },
+  { href: '/ukesnitt',            label: 'Ukesnitt' },
   { href: '/kategori-historikk',  label: 'Kategoritrend' },
   { href: '/solpleie',            label: 'Solpleie' },
   { href: '/grafer',              label: 'Grafer' },

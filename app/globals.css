@@ -687,3 +687,23 @@ td { padding: 0.6rem 0.75rem; font-size: 0.8rem; vertical-align: middle; }
   .charts-grid { gap: 1rem; padding: 1rem 1.5rem; }
   .td-product { max-width: 180px; }
 }
+
+/* ---- UKESNITT (weekly averages matrix) ---- */
+.ukesnitt-table { min-width: max-content; }
+.ukesnitt-prodcol {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface);
+  min-width: 200px;
+  max-width: 240px;
+  box-shadow: 1px 0 0 var(--border);
+}
+thead .ukesnitt-prodcol { z-index: 3; }
+.ukesnitt-weekhead { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+.ukesnitt-weeknum { font-weight: 600; white-space: nowrap; }
+.ukesnitt-weekyear { font-size: 0.6rem; color: var(--text-faint); font-weight: 400; }
+.ukesnitt-cell { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.ukesnitt-delta { font-size: 0.6rem; line-height: 1; white-space: nowrap; }
+.ukesnitt-delta.down { color: #1D6A3A; }
+.ukesnitt-delta.up { color: var(--red, #DC2626); }
