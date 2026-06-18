@@ -12,14 +12,6 @@ import { fmt, fmtShort } from '@/lib/format'
 import { CAT_CLASS } from '@/lib/categories'
 import { useLastUpdated } from '@/lib/useLastUpdated'
 
-const TIME_PERIODS = [
-  { label: 'Alle', value: 'all' },
-  { label: 'Siste 24t', value: '1' },
-  { label: 'Siste 7d', value: '7' },
-  { label: 'Siste 30d', value: '30' },
-  { label: 'Siste 90d', value: '90' },
-]
-
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
@@ -65,7 +57,6 @@ export default function Page() {
   const [merke, setMerke]       = useState('alle')
   const [sortCol, setSortCol]   = useState('merke')
   const [sortDir, setSortDir]   = useState('asc')
-  const [timePeriod, setTimePeriod]   = useState('all')
   const [showGraphs, setShowGraphs]   = useState(true)
   const [categories, setCategories]   = useState([])
 
@@ -119,21 +110,9 @@ export default function Page() {
     })
   }, [data])
 
-  // Filter by time period based on sist_oppdatert
-  const timeFiltered = useMemo(() => {
-    if (timePeriod === 'all' || !data.length) return data
-    const days = parseInt(timePeriod, 10)
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - days)
-    return data.filter(r => {
-      if (!r.sist_oppdatert) return false
-      return new Date(r.sist_oppdatert) >= cutoff
-    })
-  }, [data, timePeriod])
-
   const sorted = useMemo(() => {
-    if (!timeFiltered.length) return []
-    let filtered = timeFiltered
+    if (!data.length) return []
+    let filtered = data
     if (merke !== 'alle') filtered = filtered.filter(r => r.merke === merke)
     return [...filtered].sort((a, b) => {
       let av = a[sortCol], bv = b[sortCol]
@@ -142,19 +121,19 @@ export default function Page() {
       if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
       return sortDir === 'asc' ? av - bv : bv - av
     })
-  }, [timeFiltered, merke, sortCol, sortDir])
+  }, [data, merke, sortCol, sortDir])
 
   const stats = useMemo(() => {
-    if (!timeFiltered.length) return {}
-    const withPrices = timeFiltered.filter(r => r.laveste_pris)
+    if (!data.length) return {}
+    const withPrices = data.filter(r => r.laveste_pris)
     const avgLow = withPrices.reduce((s,r) => s + Number(r.laveste_pris), 0) / (withPrices.length || 1)
     const avgHigh = withPrices.reduce((s,r) => s + Number(r.hoyeste_pris), 0) / (withPrices.length || 1)
     const coverage = retailers.map(r => ({
       ...r,
-      count: timeFiltered.filter(row => row[r.key] !== null && row[r.key] !== undefined).length
+      count: data.filter(row => row[r.key] !== null && row[r.key] !== undefined).length
     }))
-    return { avgLow, avgHigh, coverage, total: timeFiltered.length }
-  }, [timeFiltered, retailers])
+    return { avgLow, avgHigh, coverage, total: data.length }
+  }, [data, retailers])
 
   // --- Graph data ---
 
@@ -318,20 +297,8 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Time period filter */}
+      {/* Graph visibility toggle */}
       <div className="time-filter-bar">
-        <span className="time-filter-label">Tidsperiode:</span>
-        <div className="filter-tabs">
-          {TIME_PERIODS.map(tp => (
-            <button
-              key={tp.value}
-              className={`tab ${timePeriod === tp.value ? 'active' : ''}`}
-              onClick={() => setTimePeriod(tp.value)}
-            >
-              {tp.label}
-            </button>
-          ))}
-        </div>
         <button
           className={`tab tab-toggle ${showGraphs ? 'active' : ''}`}
           onClick={() => setShowGraphs(!showGraphs)}
@@ -478,7 +445,7 @@ export default function Page() {
         ) : sorted.length === 0 ? (
           <div className="empty">
             <div className="empty-icon">&#9678;</div>
-            <div className="empty-text">Ingen produkter funnet{timePeriod !== 'all' ? ' i valgt tidsperiode' : ''}</div>
+            <div className="empty-text">Ingen produkter funnet</div>
           </div>
         ) : (
           <table>
