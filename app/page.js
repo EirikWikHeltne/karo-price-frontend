@@ -39,10 +39,10 @@ function PieTooltip({ active, payload }) {
   )
 }
 
-function renderPieLabel({ name, value, cx, x }) {
+function renderPieLabel({ name, value, cx, x, y }) {
   const anchor = x > cx ? 'start' : 'end'
   return (
-    <text x={x} y={0} textAnchor={anchor} fontSize={11} fontFamily="DM Mono" fill="var(--text)">
+    <text x={x} y={y} textAnchor={anchor} dominantBaseline="central" fontSize={11} fontFamily="DM Mono" fill="var(--text)">
       {name} ({value})
     </text>
   )
@@ -356,15 +356,15 @@ export default function Page() {
             <h3 className="chart-title">Billigst oftest</h3>
             <p className="chart-desc">Hvilken kjede har lavest pris flest ganger</p>
             <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
+              <PieChart margin={{ top: 10, right: 80, bottom: 10, left: 80 }}>
                 <Pie
                   data={cheapestDist}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={80}
-                  innerRadius={35}
+                  outerRadius={70}
+                  innerRadius={32}
                   label={renderPieLabel}
                   labelLine={{ stroke: 'var(--text-faint)' }}
                 >
