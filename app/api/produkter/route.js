@@ -1,4 +1,5 @@
 import { getSupabase } from '@/lib/supabaseServer'
+import { CACHE_HEADERS } from '@/lib/cacheHeaders'
 import { fetchAllRows } from '@/lib/fetchAllRows'
 
 export const dynamic = 'force-dynamic'
@@ -25,10 +26,5 @@ export async function GET() {
     return Response.json({ error: 'Failed to fetch data' }, { status: 500 })
   }
 
-  return Response.json(data, {
-    headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Pragma': 'no-cache',
-    },
-  })
+  return Response.json(data, { headers: CACHE_HEADERS })
 }

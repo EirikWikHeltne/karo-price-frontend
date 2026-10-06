@@ -6,8 +6,9 @@ import {
 } from 'recharts'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
-import { fmt } from '@/lib/format'
+import { fmt, fmtDate, fmtDateShort } from '@/lib/format'
 import { CAT_CLASS } from '@/lib/categories'
 import { useLastUpdated } from '@/lib/useLastUpdated'
 
@@ -29,7 +30,7 @@ function CategoryTooltip({ active, payload, label }) {
   return (
     <div className="chart-tooltip">
       <div className="chart-tooltip-label">
-        {new Date(label).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
+        {fmtDate(label)}
       </div>
       {payload.map(p => (
         <div key={p.name || p.dataKey} className="chart-tooltip-row">
@@ -59,12 +60,7 @@ export default function KategoriHistorikkPage() {
     try {
       const params = new URLSearchParams()
       params.set('dager', String(dager))
-      const res = await fetch(`/api/kategori-historikk?${params}`, { cache: 'no-store' })
-
-      if (!res.ok && res.status !== 404) {
-        throw new Error(`Server error: ${res.status}`)
-      }
-      const json = await res.json()
+      const json = await fetchJson(`/api/kategori-historikk?${params}`)
       if (json?.code === 'TABLE_NOT_FOUND') {
         setTableNotFound(true)
         setData([])
@@ -360,7 +356,7 @@ export default function KategoriHistorikkPage() {
                       tick={{ fontSize: 10, fontFamily: 'DM Mono' }}
                       axisLine={false}
                       tickLine={false}
-                      tickFormatter={v => new Date(v).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}
+                      tickFormatter={fmtDateShort}
                     />
                     <YAxis
                       tick={{ fontSize: 11, fontFamily: 'DM Mono' }}
@@ -414,7 +410,7 @@ export default function KategoriHistorikkPage() {
                         tick={{ fontSize: 10, fontFamily: 'DM Mono' }}
                         axisLine={false}
                         tickLine={false}
-                        tickFormatter={v => new Date(v).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}
+                        tickFormatter={fmtDateShort}
                       />
                       <YAxis
                         tick={{ fontSize: 10, fontFamily: 'DM Mono' }}

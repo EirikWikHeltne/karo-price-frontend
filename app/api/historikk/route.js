@@ -1,13 +1,9 @@
 import { getSupabase } from '@/lib/supabaseServer'
+import { CACHE_HEADERS } from '@/lib/cacheHeaders'
 import { fetchAllRows } from '@/lib/fetchAllRows'
 import { pivotIfNeeded, NON_PRICE_COLS } from '@/lib/pivot'
 
 export const dynamic = 'force-dynamic'
-
-const NO_CACHE_HEADERS = {
-  'Cache-Control': 'no-store, no-cache, must-revalidate',
-  'Pragma': 'no-cache',
-}
 
 // Convert current prices from prissammenligning into history-like rows
 function toHistoryRows(rows) {
@@ -80,13 +76,13 @@ export async function GET(request) {
       try {
         const rows = await fetchCurrentPriceFallback(supabase, { varenummer, produkt })
         if (rows) {
-          return Response.json(rows, { headers: NO_CACHE_HEADERS })
+          return Response.json(rows, { headers: CACHE_HEADERS })
         }
       } catch (_) { /* ignore fallback errors */ }
 
       return Response.json(
         { error: 'Prishistorikk-tabellen finnes ikke ennå', code: 'TABLE_NOT_FOUND' },
-        { status: 404, headers: NO_CACHE_HEADERS }
+        { status: 404, headers: { 'Cache-Control': 'no-store' } }
       )
     }
     console.error('Supabase error:', error)
@@ -97,10 +93,10 @@ export async function GET(request) {
   if (!data?.length) {
     const rows = await fetchCurrentPriceFallback(supabase, { varenummer, produkt })
     if (rows) {
-      return Response.json(rows, { headers: NO_CACHE_HEADERS })
+      return Response.json(rows, { headers: CACHE_HEADERS })
     }
   }
 
   const normalized = pivotIfNeeded(data)
-  return Response.json(normalized, { headers: NO_CACHE_HEADERS })
+  return Response.json(normalized, { headers: CACHE_HEADERS })
 }

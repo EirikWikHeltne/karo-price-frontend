@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
 import { useLastUpdated } from '@/lib/useLastUpdated'
@@ -19,9 +20,8 @@ export default function SammenlignPage() {
     async function load() {
       setError(null)
       try {
-        const res = await fetch('/api/priser', { cache: 'no-store' })
-        if (!res.ok) throw new Error(`Server error: ${res.status}`)
-        setAllProducts(await res.json())
+        const json = await fetchJson('/api/priser')
+        setAllProducts(Array.isArray(json) ? json : [])
       } catch (e) {
         console.error('Failed to fetch products:', e)
         setError('Kunne ikke hente produkter. Prøv igjen.')

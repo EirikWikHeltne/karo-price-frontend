@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
 import { useLastUpdated } from '@/lib/useLastUpdated'
@@ -55,6 +56,8 @@ export default function UkesnittPage() {
   const [tableNotFound, setTableNotFound] = useState(false)
 
   const [search, setSearch]     = useState('')
+
+  const deferredSearch = useDeferredValue(search)
   const [kategori, setKategori] = useState('alle')
   const [merke, setMerke]       = useState('alle')
   const [chain, setChain]       = useState(null)
@@ -65,8 +68,7 @@ export default function UkesnittPage() {
   // Product metadata (kategori/merke/produkt) so filtering works even when the
   // history fallback omits those columns.
   useEffect(() => {
-    fetch('/api/produkter', { cache: 'no-store' })
-      .then(r => r.json())
+    fetchJson('/api/produkter')
       .then(d => setProducts(Array.isArray(d) ? d : []))
       .catch(() => setProducts([]))
   }, [])
@@ -76,8 +78,7 @@ export default function UkesnittPage() {
     setError(null)
     setTableNotFound(false)
     try {
-      const res = await fetch(`/api/historikk?dager=${dager}`, { cache: 'no-store' })
-      const json = await res.json()
+      const json = await fetchJson(`/api/historikk?dager=${dager}`)
       if (json?.code === 'TABLE_NOT_FOUND') {
         setTableNotFound(true)
         setHistory([])
@@ -170,7 +171,7 @@ export default function UkesnittPage() {
   // Rows for the currently selected chain, with the average computed per week.
   const chainRows = useMemo(() => {
     if (!chain) return []
-    const s = search.trim().toLowerCase()
+    const s = deferredSearch.trim().toLowerCase()
     return rows
       .map(p => {
         const values = {}
@@ -192,7 +193,7 @@ export default function UkesnittPage() {
         (p.merke || '').toLowerCase().includes(s) ||
         (p.vn || '').toLowerCase().includes(s))
       .sort((a, b) => (a.produkt || '').localeCompare(b.produkt || ''))
-  }, [rows, weeks, chain, kategori, merke, search])
+  }, [rows, weeks, chain, kategori, merke, deferredSearch])
 
   const chainLabel = retailers.find(r => r.key === chain)?.label || ''
 

@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
 
@@ -41,9 +42,8 @@ export default function GraferPage() {
   const [merke, setMerke]     = useState('alle')
 
   useEffect(() => {
-    fetch('/api/priser', { cache: 'no-store' })
-      .then(r => r.json())
-      .then(d => { setData(d || []); setLoading(false) })
+    fetchJson('/api/priser')
+      .then(d => { setData(Array.isArray(d) ? d : []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
