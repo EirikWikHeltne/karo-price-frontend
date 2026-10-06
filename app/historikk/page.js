@@ -1,13 +1,14 @@
 'use client'
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
 } from 'recharts'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
-import { fmt } from '@/lib/format'
+import { fmt, fmtDate, fmtDateShort } from '@/lib/format'
 import { useLastUpdated } from '@/lib/useLastUpdated'
 
 const TIME_RANGES = [
@@ -22,7 +23,7 @@ function HistoryTooltip({ active, payload, label }) {
   return (
     <div className="chart-tooltip">
       <div className="chart-tooltip-label">
-        {new Date(label).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
+        {fmtDate(label)}
       </div>
       {payload.map(p => (
         <div key={p.name} className="chart-tooltip-row">
@@ -43,19 +44,19 @@ export default function HistorikkPage() {
   const [dager, setDager] = useState(30)
   const [kategori, setKategori] = useState('alle')
   const [search, setSearch] = useState('')
+  const deferredSearch = useDeferredValue(search)
   const [tableNotFound, setTableNotFound] = useState(false)
   const [historyError, setHistoryError] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const lastUpdated = useLastUpdated(products)
 
-  // Load product list
+  // Produktliste med nåværende priser (deles med Tabell-siden via cache)
   useEffect(() => {
-    fetch('/api/produkter', { cache: 'no-store' })
-      .then(r => r.json())
+    fetchJson('/api/priser')
       .catch(() => [])
       .then(productData => {
-        setProducts(productData || [])
+        setProducts(Array.isArray(productData) ? productData : [])
         setLoading(false)
       })
   }, [])
@@ -72,8 +73,7 @@ export default function HistorikkPage() {
       else params.set('produkt', product.produkt)
       params.set('dager', dager.toString())
 
-      const res = await fetch(`/api/historikk?${params}`, { cache: 'no-store' })
-      const json = await res.json()
+      const json = await fetchJson(`/api/historikk?${params}`)
 
       if (json.code === 'TABLE_NOT_FOUND') {
         setTableNotFound(true)
@@ -107,8 +107,8 @@ export default function HistorikkPage() {
   const filteredProducts = useMemo(() => {
     let d = products
     if (kategori !== 'alle') d = d.filter(r => r.kategori === kategori)
-    if (search) {
-      const s = search.toLowerCase()
+    if (deferredSearch) {
+      const s = deferredSearch.toLowerCase()
       d = d.filter(r =>
         (r.produkt || '').toLowerCase().includes(s) ||
         (r.merke || '').toLowerCase().includes(s) ||
@@ -116,7 +116,7 @@ export default function HistorikkPage() {
       )
     }
     return d
-  }, [products, kategori, search])
+  }, [products, kategori, deferredSearch])
 
   // Format history data for the chart
   const chartData = useMemo(() => {
@@ -299,7 +299,7 @@ export default function HistorikkPage() {
                         tick={{ fontSize: 10, fontFamily: 'DM Mono' }}
                         axisLine={false}
                         tickLine={false}
-                        tickFormatter={v => new Date(v).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}
+                        tickFormatter={fmtDateShort}
                       />
                       <YAxis
                         tick={{ fontSize: 11, fontFamily: 'DM Mono' }}
@@ -357,7 +357,7 @@ export default function HistorikkPage() {
                       <tbody>
                         {[...chartData].reverse().map(row => (
                           <tr key={row.dato}>
-                            <td>{new Date(row.dato).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                            <td>{fmtDate(row.dato)}</td>
                             {retailers.map(r => (
                               <td key={r.key} className="td-price">
                                 {row[r.key] != null

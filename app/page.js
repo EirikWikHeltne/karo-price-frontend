@@ -1,52 +1,18 @@
 'use client'
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, PieChart, Pie, RadarChart, Radar,
-  PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area,
-} from 'recharts'
+import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react'
+import dynamic from 'next/dynamic'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { deriveRetailers } from '@/lib/retailers'
-import { fmt, fmtShort } from '@/lib/format'
+import { fmt } from '@/lib/format'
 import { CAT_CLASS } from '@/lib/categories'
 import { useLastUpdated } from '@/lib/useLastUpdated'
+import { fetchJson } from '@/lib/fetchJson'
 
-function CustomTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="chart-tooltip">
-      <div className="chart-tooltip-label">{label}</div>
-      {payload.map(p => (
-        <div key={p.name || p.dataKey} className="chart-tooltip-row">
-          <span className="chart-tooltip-dot" style={{ background: p.payload?.color || p.color || p.fill }}></span>
-          {p.name}: {fmt(p.value)} kr
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function PieTooltip({ active, payload }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="chart-tooltip">
-      <div className="chart-tooltip-row">
-        <span className="chart-tooltip-dot" style={{ background: payload[0].payload?.color }}></span>
-        {payload[0].name}: {payload[0].value} produkter
-      </div>
-    </div>
-  )
-}
-
-function renderPieLabel({ name, value, cx, x, y }) {
-  const anchor = x > cx ? 'start' : 'end'
-  return (
-    <text x={x} y={y} textAnchor={anchor} dominantBaseline="central" fontSize={11} fontFamily="DM Mono" fill="var(--text)">
-      {name} ({value})
-    </text>
-  )
-}
+const HomeCharts = dynamic(() => import('@/components/HomeCharts'), {
+  ssr: false,
+  loading: () => <div className="loading"><div className="spinner"></div> Laster grafer...</div>,
+})
 
 export default function Page() {
   const [data, setData]         = useState([])
@@ -58,164 +24,83 @@ export default function Page() {
   const [sortCol, setSortCol]   = useState('merke')
   const [sortDir, setSortDir]   = useState('asc')
   const [showGraphs, setShowGraphs]   = useState(true)
-  const [categories, setCategories]   = useState([])
 
   const lastUpdated = useLastUpdated(data)
 
-  const fetchData = useCallback(async () => {
+  // Hele pristabellen er liten nok til å hentes én gang; kategori og søk
+  // filtreres lokalt slik at bytte av fane og skriving i søkefeltet er
+  // umiddelbart, uten nytt serverkall og spinner.
+  const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const params = new URLSearchParams()
-      if (kategori !== 'alle') params.set('kategori', kategori)
-      if (search) params.set('search', search)
-
-      const res = await fetch(`/api/priser?${params}`, { cache: 'no-store' })
-      if (!res.ok) {
-        throw new Error(`Server error: ${res.status}`)
-      }
-      const json = await res.json()
-      setData(json || [])
+      const json = await fetchJson('/api/priser')
+      setData(Array.isArray(json) ? json : [])
     } catch(e) {
       console.error(e)
       setError('Kunne ikke hente priser. Prøv igjen.')
       setData([])
     }
     setLoading(false)
-  }, [kategori, search])
+  }, [])
 
-  useEffect(() => {
-    const t = setTimeout(fetchData, search ? 300 : 0)
-    return () => clearTimeout(t)
-  }, [fetchData])
+  useEffect(() => { loadData() }, [loadData])
+
+  const deferredSearch = useDeferredValue(search)
 
   const retailers = useMemo(() => deriveRetailers(data), [data])
 
-  const brands = useMemo(() => {
-    if (!data.length) return []
-    return [...new Set(data.map(r => r.merke).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  const categories = useMemo(() => {
+    return [...new Set(data.map(r => r.kategori).filter(Boolean))].sort((a, b) => a.localeCompare(b))
   }, [data])
 
-  // Build the category tabs from the data itself so new categories appear
-  // automatically. The list only grows, so server-side filtering by category
-  // (which returns a single category) never removes the other tabs.
-  useEffect(() => {
-    if (!data.length) return
-    setCategories(prev => {
-      const set = new Set(prev)
-      data.forEach(r => { if (r.kategori) set.add(r.kategori) })
-      const next = [...set].sort((a, b) => a.localeCompare(b))
-      if (next.length === prev.length && next.every((c, i) => c === prev[i])) return prev
-      return next
-    })
-  }, [data])
+  // Rader etter kategori + søk (det serveren tidligere filtrerte på)
+  const filtered = useMemo(() => {
+    let d = data
+    if (kategori !== 'alle') d = d.filter(r => r.kategori === kategori)
+    const s = deferredSearch.trim().toLowerCase()
+    if (s) {
+      d = d.filter(r =>
+        (r.produkt || '').toLowerCase().includes(s) ||
+        (r.merke || '').toLowerCase().includes(s) ||
+        String(r.varenummer || '').toLowerCase().includes(s)
+      )
+    }
+    return d
+  }, [data, kategori, deferredSearch])
+
+  const brands = useMemo(() => {
+    if (!filtered.length) return []
+    return [...new Set(filtered.map(r => r.merke).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  }, [filtered])
+
+  const visible = useMemo(
+    () => (merke === 'alle' ? filtered : filtered.filter(r => r.merke === merke)),
+    [filtered, merke]
+  )
 
   const sorted = useMemo(() => {
-    if (!data.length) return []
-    let filtered = data
-    if (merke !== 'alle') filtered = filtered.filter(r => r.merke === merke)
-    return [...filtered].sort((a, b) => {
+    if (!visible.length) return []
+    return [...visible].sort((a, b) => {
       let av = a[sortCol], bv = b[sortCol]
       if (av === null || av === undefined) av = sortDir === 'asc' ? Infinity : -Infinity
       if (bv === null || bv === undefined) bv = sortDir === 'asc' ? Infinity : -Infinity
       if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
       return sortDir === 'asc' ? av - bv : bv - av
     })
-  }, [data, merke, sortCol, sortDir])
+  }, [visible, sortCol, sortDir])
 
   const stats = useMemo(() => {
-    if (!data.length) return {}
-    const withPrices = data.filter(r => r.laveste_pris)
+    if (!filtered.length) return {}
+    const withPrices = filtered.filter(r => r.laveste_pris)
     const avgLow = withPrices.reduce((s,r) => s + Number(r.laveste_pris), 0) / (withPrices.length || 1)
     const avgHigh = withPrices.reduce((s,r) => s + Number(r.hoyeste_pris), 0) / (withPrices.length || 1)
     const coverage = retailers.map(r => ({
       ...r,
-      count: data.filter(row => row[r.key] !== null && row[r.key] !== undefined).length
+      count: filtered.filter(row => row[r.key] !== null && row[r.key] !== undefined).length
     }))
-    return { avgLow, avgHigh, coverage, total: data.length }
-  }, [data, retailers])
-
-  // --- Graph data ---
-
-  // Average price per retailer
-  const avgByRetailer = useMemo(() => {
-    if (!sorted.length) return []
-    return retailers.map(r => {
-      const vals = sorted.map(row => row[r.key]).filter(v => v != null).map(Number)
-      return {
-        name: r.label,
-        snitt: vals.length ? +(vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : 0,
-        color: r.color,
-      }
-    })
-  }, [sorted, retailers])
-
-  // Cheapest retailer distribution
-  const cheapestDist = useMemo(() => {
-    if (!sorted.length) return []
-    const counts = {}
-    retailers.forEach(r => { counts[r.label] = 0 })
-    sorted.forEach(row => {
-      let min = Infinity, winner = null
-      retailers.forEach(r => {
-        if (row[r.key] != null && Number(row[r.key]) < min) {
-          min = Number(row[r.key]); winner = r.label
-        }
-      })
-      if (winner) counts[winner]++
-    })
-    return retailers.map(r => ({ name: r.label, value: counts[r.label], color: r.color })).filter(e => e.value > 0)
-  }, [sorted, retailers])
-
-  // Price range distribution (histogram-like)
-  const priceDistribution = useMemo(() => {
-    if (!sorted.length) return []
-    const prices = sorted.map(r => r.laveste_pris).filter(v => v != null).map(Number)
-    if (!prices.length) return []
-    const min = Math.floor(Math.min(...prices))
-    const max = Math.ceil(Math.max(...prices))
-    const step = Math.max(1, Math.ceil((max - min) / 8))
-    const buckets = []
-    for (let i = min; i < max; i += step) {
-      const lo = i
-      const hi = i + step
-      const count = prices.filter(p => p >= lo && p < hi).length
-      buckets.push({ range: `${fmtShort(lo)}-${fmtShort(hi)}`, count, lo, hi })
-    }
-    return buckets
-  }, [sorted])
-
-  // Category comparison radar
-  const categoryRadar = useMemo(() => {
-    if (!sorted.length) return []
-    const cats = [...new Set(sorted.map(r => r.kategori).filter(Boolean))]
-    return cats.map(cat => {
-      const catRows = sorted.filter(r => r.kategori === cat)
-      const result = { kategori: cat }
-      retailers.forEach(r => {
-        const vals = catRows.map(row => row[r.key]).filter(v => v != null).map(Number)
-        result[r.key] = vals.length ? +(vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : 0
-      })
-      return result
-    })
-  }, [sorted, retailers])
-
-  // Spread distribution by category
-  const spreadByCategory = useMemo(() => {
-    if (!sorted.length) return []
-    const cats = [...new Set(sorted.map(r => r.kategori).filter(Boolean))]
-    return cats.map(cat => {
-      const catRows = sorted.filter(r => r.kategori === cat)
-      const spreads = catRows.map(row => {
-        const prices = retailers.map(r => row[r.key]).filter(v => v != null).map(Number)
-        if (prices.length < 2) return 0
-        return Math.max(...prices) - Math.min(...prices)
-      }).filter(s => s > 0)
-      const avgSpread = spreads.length ? +(spreads.reduce((s, v) => s + v, 0) / spreads.length).toFixed(2) : 0
-      const maxSpread = spreads.length ? +Math.max(...spreads).toFixed(2) : 0
-      return { name: cat, snittSpread: avgSpread, maxSpread }
-    }).sort((a, b) => b.snittSpread - a.snittSpread)
-  }, [sorted, retailers])
+    return { avgLow, avgHigh, coverage, total: filtered.length }
+  }, [filtered, retailers])
 
   function handleSort(col) {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -332,103 +217,8 @@ export default function Page() {
       )}
 
       {/* Summary Graphs */}
-      {showGraphs && !loading && sorted.length > 0 && (
-        <div className="charts-grid table-charts">
-          {/* Average price per retailer */}
-          <div className="chart-card">
-            <h3 className="chart-title">Snittpris per apotek</h3>
-            <p className="chart-desc">Gjennomsnittlig pris basert på {sorted.length} produkter</p>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={avgByRetailer} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} width={50} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg)' }} />
-                <Bar dataKey="snitt" name="Snittpris" radius={[4, 4, 0, 0]}>
-                  {avgByRetailer.map(e => <Cell key={e.name} fill={e.color} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Cheapest retailer pie */}
-          <div className="chart-card">
-            <h3 className="chart-title">Billigst oftest</h3>
-            <p className="chart-desc">Hvilken kjede har lavest pris flest ganger</p>
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart margin={{ top: 10, right: 80, bottom: 10, left: 80 }}>
-                <Pie
-                  data={cheapestDist}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={70}
-                  innerRadius={32}
-                  label={renderPieLabel}
-                  labelLine={{ stroke: 'var(--text-faint)' }}
-                >
-                  {cheapestDist.map(e => <Cell key={e.name} fill={e.color} />)}
-                </Pie>
-                <Tooltip content={<PieTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Price distribution histogram */}
-          {priceDistribution.length > 0 && (
-            <div className="chart-card">
-              <h3 className="chart-title">Prisfordeling</h3>
-              <p className="chart-desc">Fordeling av laveste priser (kr)</p>
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={priceDistribution} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="range" tick={{ fontSize: 10, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} width={40} />
-                  <Tooltip formatter={(v) => [`${v} produkter`, 'Antall']} labelStyle={{ fontFamily: 'DM Mono' }} />
-                  <Area type="monotone" dataKey="count" name="Antall" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.15} strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          {/* Spread by category */}
-          {spreadByCategory.length > 1 && (
-            <div className="chart-card">
-              <h3 className="chart-title">Prisforskjeller per kategori</h3>
-              <p className="chart-desc">Gjennomsnittlig og maks spread mellom kjedene</p>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={spreadByCategory} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} width={40} />
-                  <Tooltip formatter={(v) => `${fmt(v)} kr`} labelStyle={{ fontFamily: 'DM Mono' }} />
-                  <Bar dataKey="snittSpread" name="Snitt spread" fill="var(--amber)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="maxSpread" name="Maks spread" fill="var(--red)" radius={[4, 4, 0, 0]} opacity={0.5} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          {/* Radar chart for category comparison */}
-          {categoryRadar.length > 2 && (
-            <div className="chart-card chart-card-wide">
-              <h3 className="chart-title">Kategoriprofil per apotek</h3>
-              <p className="chart-desc">Gjennomsnittspriser per kategori og kjede</p>
-              <ResponsiveContainer width="100%" height={320}>
-                <RadarChart data={categoryRadar} cx="50%" cy="50%" outerRadius="70%">
-                  <PolarGrid stroke="var(--border)" />
-                  <PolarAngleAxis dataKey="kategori" tick={{ fontSize: 11, fontFamily: 'DM Mono', fill: 'var(--text)' }} />
-                  <PolarRadiusAxis tick={{ fontSize: 10, fontFamily: 'DM Mono' }} />
-                  {retailers.map(r => (
-                    <Radar key={r.key} name={r.label} dataKey={r.key} stroke={r.color} fill={r.color} fillOpacity={0.1} strokeWidth={2} />
-                  ))}
-                  <Tooltip formatter={(v) => `${fmt(v)} kr`} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
+      {showGraphs && !loading && visible.length > 0 && (
+        <HomeCharts visible={visible} retailers={retailers} />
       )}
 
       <div className="table-wrap">
@@ -441,6 +231,9 @@ export default function Page() {
           <div className="empty">
             <div className="empty-icon">&#9888;</div>
             <div className="empty-text">{error}</div>
+            <button className="tab active" style={{ marginTop: '1rem' }} onClick={loadData}>
+              Prøv igjen
+            </button>
           </div>
         ) : sorted.length === 0 ? (
           <div className="empty">

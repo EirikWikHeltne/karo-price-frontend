@@ -1,21 +1,23 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useDeferredValue } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { fetchJson } from '@/lib/fetchJson'
 import { CAT_CLASS } from '@/lib/categories'
+import { fmtDate } from '@/lib/format'
 
 export default function ProdukterPage() {
   const [data, setData]         = useState([])
   const [loading, setLoading]   = useState(true)
   const [search, setSearch]     = useState('')
+  const deferredSearch = useDeferredValue(search)
   const [kategori, setKategori] = useState('alle')
   const [sortCol, setSortCol]   = useState('kategori')
   const [sortDir, setSortDir]   = useState('asc')
 
   useEffect(() => {
-    fetch('/api/produkter', { cache: 'no-store' })
-      .then(r => r.json())
-      .then(d => { setData(d || []); setLoading(false) })
+    fetchJson('/api/produkter')
+      .then(d => { setData(Array.isArray(d) ? d : []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
@@ -30,8 +32,8 @@ export default function ProdukterPage() {
   const filtered = useMemo(() => {
     let d = data
     if (kategori !== 'alle') d = d.filter(r => r.kategori === kategori)
-    if (search) {
-      const s = search.toLowerCase()
+    if (deferredSearch) {
+      const s = deferredSearch.toLowerCase()
       d = d.filter(r =>
         (r.produkt || '').toLowerCase().includes(s) ||
         (r.merke || '').toLowerCase().includes(s) ||
@@ -45,7 +47,7 @@ export default function ProdukterPage() {
       if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
       return sortDir === 'asc' ? av - bv : bv - av
     })
-  }, [data, kategori, search, sortCol, sortDir])
+  }, [data, kategori, deferredSearch, sortCol, sortDir])
 
   // Stats by category
   const categoryStats = useMemo(() => {
@@ -201,7 +203,7 @@ export default function ProdukterPage() {
                   <td>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                       {row.sist_oppdatert
-                        ? new Date(row.sist_oppdatert).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })
+                        ? fmtDate(row.sist_oppdatert)
                         : '—'}
                     </span>
                   </td>

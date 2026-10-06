@@ -1,11 +1,12 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useDeferredValue } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from 'recharts'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
 import { useLastUpdated } from '@/lib/useLastUpdated'
@@ -58,6 +59,7 @@ export default function SolpleiePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
   const [search, setSearch]   = useState('')
+  const deferredSearch = useDeferredValue(search)
   const [merke, setMerke]     = useState('alle')
   const [scope, setScope]     = useState('solpleie') // 'solpleie' | 'alle'
   const [sortCol, setSortCol] = useState('snitt')
@@ -70,9 +72,7 @@ export default function SolpleiePage() {
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch('/api/priser', { cache: 'no-store' })
-        if (!res.ok) throw new Error(`Server error: ${res.status}`)
-        const json = await res.json()
+        const json = await fetchJson('/api/priser')
         setData(Array.isArray(json) ? json : [])
       } catch (e) {
         console.error(e)
@@ -110,8 +110,8 @@ export default function SolpleiePage() {
   const filtered = useMemo(() => {
     let d = enriched
     if (merke !== 'alle') d = d.filter(r => r.merke === merke)
-    if (search) {
-      const s = search.toLowerCase()
+    if (deferredSearch) {
+      const s = deferredSearch.toLowerCase()
       d = d.filter(r =>
         (r.produkt || '').toLowerCase().includes(s) ||
         (r.merke || '').toLowerCase().includes(s) ||
@@ -132,7 +132,7 @@ export default function SolpleiePage() {
       if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
       return sortDir === 'asc' ? av - bv : bv - av
     })
-  }, [enriched, merke, search, sortCol, sortDir])
+  }, [enriched, merke, deferredSearch, sortCol, sortDir])
 
   // Data for snittpris-grafen: ett produkt per stolpe, sortert på snittpris.
   const avgChartData = useMemo(() => {

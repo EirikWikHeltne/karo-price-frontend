@@ -1,4 +1,5 @@
 import { getSupabase } from '@/lib/supabaseServer'
+import { CACHE_HEADERS } from '@/lib/cacheHeaders'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,10 +35,5 @@ export async function GET() {
     }
   }
 
-  return Response.json({ dato }, {
-    headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Pragma': 'no-cache',
-    },
-  })
+  return Response.json({ dato }, { headers: CACHE_HEADERS })
 }

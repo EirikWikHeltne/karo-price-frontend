@@ -1,4 +1,5 @@
 import { getSupabase } from '@/lib/supabaseServer'
+import { CACHE_HEADERS } from '@/lib/cacheHeaders'
 import { fetchAllRows } from '@/lib/fetchAllRows'
 import { pivotIfNeeded, NON_PRICE_COLS } from '@/lib/pivot'
 
@@ -111,11 +112,7 @@ export async function GET(request) {
       const snapshot = await loadCurrentSnapshot(supabase)
       if (snapshot.length) {
         return Response.json(aggregateByCategoryAndDate(snapshot), {
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate',
-            'Pragma': 'no-cache',
-            'X-Source': 'snapshot',
-          },
+          headers: { ...CACHE_HEADERS, 'X-Source': 'snapshot' },
         })
       }
       return Response.json(
@@ -136,10 +133,5 @@ export async function GET(request) {
     pivoted = await enrichCategories(supabase, pivoted)
   }
 
-  return Response.json(aggregateByCategoryAndDate(pivoted), {
-    headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Pragma': 'no-cache',
-    },
-  })
+  return Response.json(aggregateByCategoryAndDate(pivoted), { headers: CACHE_HEADERS })
 }
