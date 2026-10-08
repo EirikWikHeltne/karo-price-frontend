@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'rea
 import dynamic from 'next/dynamic'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { TableSkeleton, ChartSkeleton } from '@/components/Skeleton'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
 import { CAT_CLASS } from '@/lib/categories'
@@ -11,7 +12,7 @@ import { fetchJson } from '@/lib/fetchJson'
 
 const HomeCharts = dynamic(() => import('@/components/HomeCharts'), {
   ssr: false,
-  loading: () => <div className="loading"><div className="spinner"></div> Laster grafer...</div>,
+  loading: () => <ChartSkeleton />,
 })
 
 export default function Page() {
@@ -173,6 +174,13 @@ export default function Page() {
         <div className="controls-right">
           <span className="count-badge">{sorted.length} produkter</span>
           <button
+            className={`tab tab-toggle ${showGraphs ? 'active' : ''}`}
+            onClick={() => setShowGraphs(!showGraphs)}
+            aria-pressed={showGraphs}
+          >
+            {showGraphs ? 'Skjul grafer' : 'Vis grafer'}
+          </button>
+          <button
             className="btn-excel"
             onClick={downloadExcel}
             disabled={!sorted.length}
@@ -180,16 +188,6 @@ export default function Page() {
             Last ned Excel
           </button>
         </div>
-      </div>
-
-      {/* Graph visibility toggle */}
-      <div className="time-filter-bar">
-        <button
-          className={`tab tab-toggle ${showGraphs ? 'active' : ''}`}
-          onClick={() => setShowGraphs(!showGraphs)}
-        >
-          {showGraphs ? 'Skjul grafer' : 'Vis grafer'}
-        </button>
       </div>
 
       {!loading && stats.total > 0 && (
@@ -217,16 +215,14 @@ export default function Page() {
       )}
 
       {/* Summary Graphs */}
+      {showGraphs && loading && <ChartSkeleton />}
       {showGraphs && !loading && visible.length > 0 && (
         <HomeCharts visible={visible} retailers={retailers} />
       )}
 
       <div className="table-wrap">
         {loading ? (
-          <div className="loading">
-            <div className="spinner"></div>
-            Henter priser...
-          </div>
+          <TableSkeleton cols={7} label="Henter priser..." />
         ) : error ? (
           <div className="empty">
             <div className="empty-icon">&#9888;</div>

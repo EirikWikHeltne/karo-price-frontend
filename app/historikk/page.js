@@ -4,6 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
 } from 'recharts'
+import { CHART_ANIM, PRICE_DOMAIN } from '@/lib/chartTheme'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { fetchJson } from '@/lib/fetchJson'
@@ -274,8 +275,10 @@ export default function HistorikkPage() {
                   </div>
                 </div>
               ) : historyLoading ? (
-                <div className="loading" style={{ padding: '4rem' }}>
-                  <div className="spinner"></div> Henter prishistorikk...
+                <div className="chart-card" style={{ marginTop: '1rem' }} role="status" aria-label="Henter prishistorikk">
+                  <span className="skeleton skeleton-title" />
+                  <span className="skeleton skeleton-line skeleton-line-short" />
+                  <span className="skeleton skeleton-chart" style={{ height: 350 }} />
                 </div>
               ) : chartData.length === 0 ? (
                 <div className="chart-card" style={{ marginTop: '1rem' }}>
@@ -306,7 +309,8 @@ export default function HistorikkPage() {
                         axisLine={false}
                         tickLine={false}
                         width={55}
-                        tickFormatter={v => `${v} kr`}
+                        domain={PRICE_DOMAIN}
+                        tickFormatter={v => `${Math.round(v)} kr`}
                       />
                       <Tooltip content={<HistoryTooltip />} />
                       <Legend
@@ -314,13 +318,14 @@ export default function HistorikkPage() {
                       />
                       {retailers.map(r => (
                         <Line
+                          {...CHART_ANIM}
                           key={r.key}
                           type="monotone"
                           dataKey={r.key}
                           name={r.label}
                           stroke={r.color}
                           strokeWidth={2}
-                          dot={{ r: 3 }}
+                          dot={chartData.length <= 31 ? { r: 3, strokeWidth: 2, fill: 'var(--surface)' } : false}
                           activeDot={{ r: 5 }}
                           connectNulls
                         />

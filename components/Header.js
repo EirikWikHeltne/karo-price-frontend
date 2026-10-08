@@ -37,17 +37,19 @@ export default function Header({ active, lastUpdated, showLastUpdated = true }) 
         </div>
       )}
       <button
-        className="mobile-nav-toggle"
+        className={`mobile-nav-toggle ${mobileNav ? 'open' : ''}`}
         onClick={() => setMobileNav(v => !v)}
         aria-label="Meny"
+        aria-expanded={mobileNav}
+        aria-controls="main-nav"
       >
         <span></span><span></span><span></span>
       </button>
-      <div className={`header-right ${mobileNav ? 'open' : ''}`}>
-        <nav className="header-nav">
+      <div id="main-nav" className={`header-right ${mobileNav ? 'open' : ''}`}>
+        <nav className="header-nav" aria-label="Hovedmeny">
           {NAV_ITEMS.map(item => (
             item.href === active ? (
-              <span key={item.href} className="nav-link active">{item.label}</span>
+              <span key={item.href} className="nav-link active" aria-current="page">{item.label}</span>
             ) : (
               <Link
                 key={item.href}

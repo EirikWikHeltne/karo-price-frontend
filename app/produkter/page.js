@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { TableSkeleton } from '@/components/Skeleton'
 import { fetchJson } from '@/lib/fetchJson'
 import { CAT_CLASS } from '@/lib/categories'
 import { fmtDate } from '@/lib/format'
@@ -153,10 +154,7 @@ export default function ProdukterPage() {
 
       <div className="table-wrap">
         {loading ? (
-          <div className="loading">
-            <div className="spinner"></div>
-            Henter produkter...
-          </div>
+          <TableSkeleton cols={5} label="Henter produkter..." />
         ) : filtered.length === 0 ? (
           <div className="empty">
             <div className="empty-icon">&#9678;</div>
