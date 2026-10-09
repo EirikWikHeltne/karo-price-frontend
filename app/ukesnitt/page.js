@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { TableSkeleton } from '@/components/Skeleton'
 import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
@@ -290,10 +291,7 @@ export default function UkesnittPage() {
 
       <div className="table-wrap" style={{ overflowX: 'auto' }}>
         {loading ? (
-          <div className="loading">
-            <div className="spinner"></div>
-            Henter ukesnitt...
-          </div>
+          <TableSkeleton cols={9} label="Henter ukesnitt..." />
         ) : error ? (
           <div className="empty">
             <div className="empty-icon">&#9888;</div>

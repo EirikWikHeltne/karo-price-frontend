@@ -5,8 +5,10 @@ import {
   ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area,
   ScatterChart, Scatter, ZAxis,
 } from 'recharts'
+import { CHART_ANIM } from '@/lib/chartTheme'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { ChartSkeleton } from '@/components/Skeleton'
 import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
@@ -170,10 +172,7 @@ export default function GraferPage() {
       </div>
 
       {loading ? (
-        <div className="loading">
-          <div className="spinner"></div>
-          Henter data...
-        </div>
+        <ChartSkeleton count={4} height={300} />
       ) : (
         <div className="charts-grid">
           <div className="chart-card">
@@ -195,7 +194,7 @@ export default function GraferPage() {
                   width={50}
                 />
                 <Tooltip content={<GrafTooltip />} cursor={{ fill: 'var(--bg)' }} />
-                <Bar dataKey="snitt" name="Snittpris" radius={[4, 4, 0, 0]}>
+                <Bar {...CHART_ANIM} dataKey="snitt" name="Snittpris" radius={[4, 4, 0, 0]}>
                   {avgByRetailer.map(e => (
                     <Cell key={e.name} fill={e.color} />
                   ))}
@@ -210,6 +209,7 @@ export default function GraferPage() {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
+                  {...CHART_ANIM}
                   data={cheapestDist}
                   dataKey="value"
                   nameKey="name"
@@ -242,7 +242,7 @@ export default function GraferPage() {
                   <Tooltip formatter={(v) => `${v}%`} labelStyle={{ fontFamily: 'DM Mono' }} />
                   <Legend wrapperStyle={{ fontSize: '0.7rem', fontFamily: 'DM Mono' }} />
                   {retailers.map(r => (
-                    <Bar key={r.key} dataKey={`${r.key}Pct`} name={r.label} fill={r.color} radius={[2, 2, 0, 0]} opacity={0.8} />
+                    <Bar {...CHART_ANIM} key={r.key} dataKey={`${r.key}Pct`} name={r.label} fill={r.color} radius={[2, 2, 0, 0]} opacity={0.8} />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
@@ -265,7 +265,7 @@ export default function GraferPage() {
                     labelFormatter={() => ''}
                     contentStyle={{ fontFamily: 'DM Mono', fontSize: '0.75rem' }}
                   />
-                  <Scatter data={scatterData} fill="var(--accent)" fillOpacity={0.4} stroke="var(--accent)" strokeWidth={1} />
+                  <Scatter {...CHART_ANIM} data={scatterData} fill="var(--accent)" fillOpacity={0.4} stroke="var(--accent)" strokeWidth={1} />
                 </ScatterChart>
               </ResponsiveContainer>
             </div>
@@ -297,7 +297,7 @@ export default function GraferPage() {
                     tickLine={false}
                   />
                   <Tooltip formatter={(v) => `${fmt(v)} kr`} labelStyle={{ fontFamily: 'DM Mono' }} />
-                  <Bar dataKey="spread" name="Prisforskjell" fill="var(--red)" radius={[0, 4, 4, 0]} />
+                  <Bar {...CHART_ANIM} dataKey="spread" name="Prisforskjell" fill="var(--red)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}

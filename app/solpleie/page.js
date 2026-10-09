@@ -4,8 +4,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from 'recharts'
+import { CHART_ANIM } from '@/lib/chartTheme'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { TableSkeleton } from '@/components/Skeleton'
 import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
@@ -364,7 +366,7 @@ export default function SolpleiePage() {
                   tickLine={false}
                 />
                 <Tooltip content={<ProductAvgTooltip />} cursor={{ fill: 'var(--bg)' }} />
-                <Bar dataKey="avg" name="Snittpris" radius={[0, 4, 4, 0]}>
+                <Bar {...CHART_ANIM} dataKey="avg" name="Snittpris" radius={[0, 4, 4, 0]}>
                   {avgChartData.rows.map((e, i) => <Cell key={i} fill={e.color} />)}
                 </Bar>
               </BarChart>
@@ -375,10 +377,7 @@ export default function SolpleiePage() {
 
       <div className="table-wrap">
         {loading ? (
-          <div className="loading">
-            <div className="spinner"></div>
-            Henter priser...
-          </div>
+          <TableSkeleton cols={7} label="Henter priser..." />
         ) : error ? (
           <div className="empty">
             <div className="empty-icon">&#9888;</div>

@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, Cell, PieChart, Pie, RadarChart, Radar,
   PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area,
 } from 'recharts'
+import { CHART_ANIM } from '@/lib/chartTheme'
 import { fmt, fmtShort } from '@/lib/format'
 
 // Grafene på Tabell-siden. Ligger i egen komponent slik at recharts kan
@@ -139,7 +140,7 @@ export default function HomeCharts({ visible, retailers }) {
             <XAxis dataKey="name" tick={{ fontSize: 11, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} width={50} />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg)' }} />
-            <Bar dataKey="snitt" name="Snittpris" radius={[4, 4, 0, 0]}>
+            <Bar {...CHART_ANIM} dataKey="snitt" name="Snittpris" radius={[4, 4, 0, 0]}>
               {avgByRetailer.map(e => <Cell key={e.name} fill={e.color} />)}
             </Bar>
           </BarChart>
@@ -153,6 +154,7 @@ export default function HomeCharts({ visible, retailers }) {
         <ResponsiveContainer width="100%" height={260}>
           <PieChart margin={{ top: 10, right: 80, bottom: 10, left: 80 }}>
             <Pie
+              {...CHART_ANIM}
               data={cheapestDist}
               dataKey="value"
               nameKey="name"
@@ -181,7 +183,7 @@ export default function HomeCharts({ visible, retailers }) {
               <XAxis dataKey="range" tick={{ fontSize: 10, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} width={40} />
               <Tooltip formatter={(v) => [`${v} produkter`, 'Antall']} labelStyle={{ fontFamily: 'DM Mono' }} />
-              <Area type="monotone" dataKey="count" name="Antall" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.15} strokeWidth={2} />
+              <Area {...CHART_ANIM} type="monotone" dataKey="count" name="Antall" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.15} strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -198,8 +200,8 @@ export default function HomeCharts({ visible, retailers }) {
               <XAxis dataKey="name" tick={{ fontSize: 10, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fontFamily: 'DM Mono' }} axisLine={false} tickLine={false} width={40} />
               <Tooltip formatter={(v) => `${fmt(v)} kr`} labelStyle={{ fontFamily: 'DM Mono' }} />
-              <Bar dataKey="snittSpread" name="Snitt spread" fill="var(--amber)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="maxSpread" name="Maks spread" fill="var(--red)" radius={[4, 4, 0, 0]} opacity={0.5} />
+              <Bar {...CHART_ANIM} dataKey="snittSpread" name="Snitt spread" fill="var(--amber)" radius={[4, 4, 0, 0]} />
+              <Bar {...CHART_ANIM} dataKey="maxSpread" name="Maks spread" fill="var(--red)" radius={[4, 4, 0, 0]} opacity={0.5} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -216,7 +218,7 @@ export default function HomeCharts({ visible, retailers }) {
               <PolarAngleAxis dataKey="kategori" tick={{ fontSize: 11, fontFamily: 'DM Mono', fill: 'var(--text)' }} />
               <PolarRadiusAxis tick={{ fontSize: 10, fontFamily: 'DM Mono' }} />
               {retailers.map(r => (
-                <Radar key={r.key} name={r.label} dataKey={r.key} stroke={r.color} fill={r.color} fillOpacity={0.1} strokeWidth={2} />
+                <Radar {...CHART_ANIM} key={r.key} name={r.label} dataKey={r.key} stroke={r.color} fill={r.color} fillOpacity={0.1} strokeWidth={2} />
               ))}
               <Tooltip formatter={(v) => `${fmt(v)} kr`} />
             </RadarChart>

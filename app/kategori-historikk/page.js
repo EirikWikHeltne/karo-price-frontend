@@ -4,8 +4,10 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
 } from 'recharts'
+import { CHART_ANIM, PRICE_DOMAIN } from '@/lib/chartTheme'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { ChartSkeleton } from '@/components/Skeleton'
 import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt, fmtDate, fmtDateShort } from '@/lib/format'
@@ -283,7 +285,7 @@ export default function KategoriHistorikkPage() {
       )}
 
       {loading ? (
-        <div className="loading"><div className="spinner"></div> Henter prishistorikk...</div>
+        <ChartSkeleton count={1} height={380} />
       ) : error ? (
         <div className="empty">
           <div className="empty-icon">&#9888;</div>
@@ -369,6 +371,7 @@ export default function KategoriHistorikkPage() {
                     <Legend wrapperStyle={{ fontSize: '0.75rem', fontFamily: 'DM Mono' }} />
                     {visibleCategories.map(cat => (
                       <Line
+                        {...CHART_ANIM}
                         key={cat}
                         type="monotone"
                         dataKey={cat}
@@ -417,11 +420,13 @@ export default function KategoriHistorikkPage() {
                         axisLine={false}
                         tickLine={false}
                         width={45}
-                        tickFormatter={v => `${v}`}
+                        domain={PRICE_DOMAIN}
+                        tickFormatter={v => `${Math.round(v)}`}
                       />
                       <Tooltip content={<CategoryTooltip />} />
                       {retailers.map(r => (
                         <Line
+                          {...CHART_ANIM}
                           key={r.key}
                           type="monotone"
                           dataKey={r.key}
