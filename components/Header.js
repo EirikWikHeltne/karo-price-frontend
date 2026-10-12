@@ -27,7 +27,7 @@ export default function Header({ active, lastUpdated, showLastUpdated = true }) 
   return (
     <header className="header">
       <div className="header-left">
-        <div className="header-logo">KARO PRISER</div>
+        <div className="header-logo">Karo <span className="header-logo-accent">Priser</span></div>
         <div className="header-sub">Prisovervåking</div>
       </div>
       {showLastUpdated && updatedLabel && (

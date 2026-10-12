@@ -173,7 +173,7 @@ export default function HistorikkPage() {
         {/* Product list sidebar */}
         <div className={`historikk-sidebar ${!sidebarOpen ? 'collapsed' : ''}`}>
           <button className="historikk-sidebar-header" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ cursor: 'pointer', background: 'none', border: 'none', width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontFamily: 'Syne, sans-serif', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-faint)' }}>
+            <span style={{ fontFamily: 'Georgia, serif', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-faint)' }}>
               Velg produkt ({filteredProducts.length})
             </span>
             <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)' }}>{sidebarOpen ? '▲' : '▼'}</span>
@@ -299,13 +299,13 @@ export default function HistorikkPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis
                         dataKey="dato"
-                        tick={{ fontSize: 10, fontFamily: 'DM Mono' }}
+                        tick={{ fontSize: 10, fontFamily: 'Inter' }}
                         axisLine={false}
                         tickLine={false}
                         tickFormatter={fmtDateShort}
                       />
                       <YAxis
-                        tick={{ fontSize: 11, fontFamily: 'DM Mono' }}
+                        tick={{ fontSize: 11, fontFamily: 'Inter' }}
                         axisLine={false}
                         tickLine={false}
                         width={55}
@@ -314,7 +314,7 @@ export default function HistorikkPage() {
                       />
                       <Tooltip content={<HistoryTooltip />} />
                       <Legend
-                        wrapperStyle={{ fontSize: '0.75rem', fontFamily: 'DM Mono' }}
+                        wrapperStyle={{ fontSize: '0.75rem', fontFamily: 'Inter' }}
                       />
                       {retailers.map(r => (
                         <Line

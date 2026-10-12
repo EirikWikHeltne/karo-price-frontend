@@ -355,20 +355,20 @@ export default function KategoriHistorikkPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis
                       dataKey="dato"
-                      tick={{ fontSize: 10, fontFamily: 'DM Mono' }}
+                      tick={{ fontSize: 10, fontFamily: 'Inter' }}
                       axisLine={false}
                       tickLine={false}
                       tickFormatter={fmtDateShort}
                     />
                     <YAxis
-                      tick={{ fontSize: 11, fontFamily: 'DM Mono' }}
+                      tick={{ fontSize: 11, fontFamily: 'Inter' }}
                       axisLine={false}
                       tickLine={false}
                       width={55}
                       tickFormatter={v => `${v} kr`}
                     />
                     <Tooltip content={<CategoryTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '0.75rem', fontFamily: 'DM Mono' }} />
+                    <Legend wrapperStyle={{ fontSize: '0.75rem', fontFamily: 'Inter' }} />
                     {visibleCategories.map(cat => (
                       <Line
                         {...CHART_ANIM}
@@ -410,13 +410,13 @@ export default function KategoriHistorikkPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis
                         dataKey="dato"
-                        tick={{ fontSize: 10, fontFamily: 'DM Mono' }}
+                        tick={{ fontSize: 10, fontFamily: 'Inter' }}
                         axisLine={false}
                         tickLine={false}
                         tickFormatter={fmtDateShort}
                       />
                       <YAxis
-                        tick={{ fontSize: 10, fontFamily: 'DM Mono' }}
+                        tick={{ fontSize: 10, fontFamily: 'Inter' }}
                         axisLine={false}
                         tickLine={false}
                         width={45}

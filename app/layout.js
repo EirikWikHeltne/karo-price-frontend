@@ -2,7 +2,7 @@ import './globals.css'
 
 // Lastes som <link> i <head> i stedet for @import i CSS, slik at nettleseren
 // oppdager fontene med én gang i stedet for etter at globals.css er lastet.
-const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap'
+const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
 
 export const metadata = {
   title: 'PrisScanner — Sammenlign apotekpriser',
@@ -28,6 +28,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="no">
       <head>
+        <meta name="theme-color" content="#110B36" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="stylesheet" href={FONTS_URL} />
