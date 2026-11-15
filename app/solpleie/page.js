@@ -9,6 +9,8 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { TableSkeleton } from '@/components/Skeleton'
 import { fetchJson } from '@/lib/fetchJson'
+import { matchesSearch } from '@/lib/search'
+import { compareValues } from '@/lib/sort'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
 import { useLastUpdated } from '@/lib/useLastUpdated'
@@ -104,6 +106,9 @@ export default function SolpleiePage() {
       .sort((a, b) => a.localeCompare(b))
   }, [baseProducts])
 
+  // Valgt merke finnes kanskje ikke lenger når utvalget (scope) byttes
+  const activeMerke = brands.includes(merke) ? merke : 'alle'
+
   // Berik hver rad med analysefelter
   const enriched = useMemo(() => {
     return baseProducts.map(row => ({ ...row, _calc: analyzeRow(row, retailers) }))
@@ -111,15 +116,8 @@ export default function SolpleiePage() {
 
   const filtered = useMemo(() => {
     let d = enriched
-    if (merke !== 'alle') d = d.filter(r => r.merke === merke)
-    if (deferredSearch) {
-      const s = deferredSearch.toLowerCase()
-      d = d.filter(r =>
-        (r.produkt || '').toLowerCase().includes(s) ||
-        (r.merke || '').toLowerCase().includes(s) ||
-        (r.varenummer || '').toLowerCase().includes(s)
-      )
-    }
+    if (activeMerke !== 'alle') d = d.filter(r => r.merke === activeMerke)
+    if (deferredSearch.trim()) d = d.filter(r => matchesSearch(r, deferredSearch))
     const calcCols = { laveste: 'min', hoyeste: 'max', snitt: 'avg', spread: 'spread', spreadPct: 'spreadPct' }
     return [...d].sort((a, b) => {
       let av, bv
@@ -129,12 +127,9 @@ export default function SolpleiePage() {
       } else {
         av = a[sortCol]; bv = b[sortCol]
       }
-      if (av === null || av === undefined) av = sortDir === 'asc' ? Infinity : -Infinity
-      if (bv === null || bv === undefined) bv = sortDir === 'asc' ? Infinity : -Infinity
-      if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
-      return sortDir === 'asc' ? av - bv : bv - av
+      return compareValues(av, bv, sortDir)
     })
-  }, [enriched, merke, deferredSearch, sortCol, sortDir])
+  }, [enriched, activeMerke, deferredSearch, sortCol, sortDir])
 
   // Data for snittpris-grafen: ett produkt per stolpe, sortert på snittpris.
   const avgChartData = useMemo(() => {
@@ -251,6 +246,8 @@ export default function SolpleiePage() {
           <span className="search-icon">&#x1F50D;</span>
           <input
             className="search-input"
+            type="search"
+            aria-label="Søk"
             placeholder="Søk produkt, merke, varenr..."
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -274,7 +271,8 @@ export default function SolpleiePage() {
         </div>
         <select
           className="brand-select"
-          value={merke}
+          aria-label="Merke"
+          value={activeMerke}
           onChange={e => setMerke(e.target.value)}
         >
           <option value="alle">Alle merker</option>

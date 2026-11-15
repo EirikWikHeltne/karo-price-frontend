@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
@@ -55,7 +55,12 @@ export default function KategoriHistorikkPage() {
 
   const lastUpdated = useLastUpdated()
 
+  // Hindrer at et tregt svar for en tidligere valgt periode overskriver nyere data
+  const requestId = useRef(0)
+
   const fetchData = useCallback(async () => {
+    const id = ++requestId.current
+    const isStale = () => id !== requestId.current
     setLoading(true)
     setError(null)
     setTableNotFound(false)
@@ -63,6 +68,7 @@ export default function KategoriHistorikkPage() {
       const params = new URLSearchParams()
       params.set('dager', String(dager))
       const json = await fetchJson(`/api/kategori-historikk?${params}`)
+      if (isStale()) return
       if (json?.code === 'TABLE_NOT_FOUND') {
         setTableNotFound(true)
         setData([])
@@ -73,6 +79,7 @@ export default function KategoriHistorikkPage() {
         setData([])
       }
     } catch (e) {
+      if (isStale()) return
       console.error(e)
       setError('Kunne ikke hente data. Prøv igjen.')
       setData([])

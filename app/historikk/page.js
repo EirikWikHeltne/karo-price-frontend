@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react'
+import { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
@@ -11,6 +11,7 @@ import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt, fmtDate, fmtDateShort } from '@/lib/format'
 import { useLastUpdated } from '@/lib/useLastUpdated'
+import { matchesSearch } from '@/lib/search'
 
 const TIME_RANGES = [
   { label: '7 dager', value: 7 },
@@ -63,8 +64,14 @@ export default function HistorikkPage() {
   }, [])
 
   // Fetch history when product is selected
+  // Teller opp for hvert kall, slik at et tregt svar for et tidligere valgt
+  // produkt ikke overskriver grafen for det som er valgt nå.
+  const requestId = useRef(0)
+
   const fetchHistory = useCallback(async (product) => {
     if (!product) return
+    const id = ++requestId.current
+    const isStale = () => id !== requestId.current
     setHistoryLoading(true)
     setTableNotFound(false)
     setHistoryError(null)
@@ -75,6 +82,7 @@ export default function HistorikkPage() {
       params.set('dager', dager.toString())
 
       const json = await fetchJson(`/api/historikk?${params}`)
+      if (isStale()) return
 
       if (json.code === 'TABLE_NOT_FOUND') {
         setTableNotFound(true)
@@ -86,6 +94,7 @@ export default function HistorikkPage() {
         setHistoryData([])
       }
     } catch {
+      if (isStale()) return
       setHistoryError('Kunne ikke hente prishistorikk. Prøv igjen.')
       setHistoryData([])
     }
@@ -108,14 +117,7 @@ export default function HistorikkPage() {
   const filteredProducts = useMemo(() => {
     let d = products
     if (kategori !== 'alle') d = d.filter(r => r.kategori === kategori)
-    if (deferredSearch) {
-      const s = deferredSearch.toLowerCase()
-      d = d.filter(r =>
-        (r.produkt || '').toLowerCase().includes(s) ||
-        (r.merke || '').toLowerCase().includes(s) ||
-        (r.varenummer || '').toLowerCase().includes(s)
-      )
-    }
+    if (deferredSearch.trim()) d = d.filter(r => matchesSearch(r, deferredSearch))
     return d
   }, [products, kategori, deferredSearch])
 
@@ -151,6 +153,8 @@ export default function HistorikkPage() {
           <span className="search-icon">&#x1F50D;</span>
           <input
             className="search-input"
+            type="search"
+            aria-label="Søk"
             placeholder="Søk produkt, merke, varenr..."
             value={search}
             onChange={e => setSearch(e.target.value)}

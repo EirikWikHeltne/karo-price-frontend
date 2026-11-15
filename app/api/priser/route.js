@@ -21,6 +21,7 @@ export async function GET(request) {
     .select('*')
     .order('kategori')
     .order('merke')
+    .order('id')
 
   if (kategori && kategori !== 'alle') {
     query = query.eq('kategori', kategori)

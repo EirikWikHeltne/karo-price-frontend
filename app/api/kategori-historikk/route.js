@@ -2,6 +2,7 @@ import { getSupabase } from '@/lib/supabaseServer'
 import { CACHE_HEADERS } from '@/lib/cacheHeaders'
 import { fetchAllRows } from '@/lib/fetchAllRows'
 import { pivotIfNeeded, NON_PRICE_COLS } from '@/lib/pivot'
+import { parseDager } from '@/lib/parseDager'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,7 +60,7 @@ function aggregateByCategoryAndDate(rows) {
 }
 
 async function loadCurrentSnapshot(supabase) {
-  const { data, error } = await fetchAllRows(supabase.from('prissammenligning').select('*'))
+  const { data, error } = await fetchAllRows(supabase.from('prissammenligning').select('*').order('id'))
   if (error || !data?.length) return []
   return data.map(row => ({
     ...row,
@@ -71,7 +72,7 @@ async function enrichCategories(supabase, rows) {
   const missing = rows.filter(r => !r.kategori && r.varenummer)
   if (!missing.length) return rows
   const { data, error } = await fetchAllRows(
-    supabase.from('prissammenligning').select('varenummer, kategori, merke, produkt')
+    supabase.from('prissammenligning').select('varenummer, kategori, merke, produkt').order('id')
   )
   if (error || !data?.length) return rows
   const byVn = {}
@@ -95,7 +96,7 @@ export async function GET(request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const dager = parseInt(searchParams.get('dager') || '90', 10)
+  const dager = parseDager(searchParams.get('dager'), 90)
 
   let query = supabase.from('prishistorikk').select('*').order('dato', { ascending: true })
 

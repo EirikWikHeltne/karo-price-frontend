@@ -14,19 +14,19 @@ export const metadata = {
   openGraph: {
     title: 'PrisScanner — Sammenlign apotekpriser',
     description: 'Sammenlign apotekpriser på tvers av norske apotek.',
-    images: [{ url: '/og-image.svg', width: 1200, height: 630 }],
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'PrisScanner — Sammenlign apotekpriser',
     description: 'Sammenlign apotekpriser på tvers av norske apotek.',
-    images: ['/og-image.svg'],
+    images: ['/og-image.png'],
   },
 }
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="no">
+    <html lang="nb">
       <head>
         <meta name="theme-color" content="#110B36" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

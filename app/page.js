@@ -9,6 +9,8 @@ import { fmt } from '@/lib/format'
 import { CAT_CLASS } from '@/lib/categories'
 import { useLastUpdated } from '@/lib/useLastUpdated'
 import { fetchJson } from '@/lib/fetchJson'
+import { matchesSearch } from '@/lib/search'
+import { compareValues } from '@/lib/sort'
 
 const HomeCharts = dynamic(() => import('@/components/HomeCharts'), {
   ssr: false,
@@ -59,14 +61,7 @@ export default function Page() {
   const filtered = useMemo(() => {
     let d = data
     if (kategori !== 'alle') d = d.filter(r => r.kategori === kategori)
-    const s = deferredSearch.trim().toLowerCase()
-    if (s) {
-      d = d.filter(r =>
-        (r.produkt || '').toLowerCase().includes(s) ||
-        (r.merke || '').toLowerCase().includes(s) ||
-        String(r.varenummer || '').toLowerCase().includes(s)
-      )
-    }
+    if (deferredSearch.trim()) d = d.filter(r => matchesSearch(r, deferredSearch))
     return d
   }, [data, kategori, deferredSearch])
 
@@ -75,20 +70,19 @@ export default function Page() {
     return [...new Set(filtered.map(r => r.merke).filter(Boolean))].sort((a, b) => a.localeCompare(b))
   }, [filtered])
 
+  // Valgt merke kan forsvinne fra listen når kategori eller søk endres. Da skal
+  // filteret ikke lenger gjelde, ellers blir tabellen tom mens nedtrekkslisten
+  // viser «Alle merker».
+  const activeMerke = brands.includes(merke) ? merke : 'alle'
+
   const visible = useMemo(
-    () => (merke === 'alle' ? filtered : filtered.filter(r => r.merke === merke)),
-    [filtered, merke]
+    () => (activeMerke === 'alle' ? filtered : filtered.filter(r => r.merke === activeMerke)),
+    [filtered, activeMerke]
   )
 
   const sorted = useMemo(() => {
     if (!visible.length) return []
-    return [...visible].sort((a, b) => {
-      let av = a[sortCol], bv = b[sortCol]
-      if (av === null || av === undefined) av = sortDir === 'asc' ? Infinity : -Infinity
-      if (bv === null || bv === undefined) bv = sortDir === 'asc' ? Infinity : -Infinity
-      if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
-      return sortDir === 'asc' ? av - bv : bv - av
-    })
+    return [...visible].sort((a, b) => compareValues(a[sortCol], b[sortCol], sortDir))
   }, [visible, sortCol, sortDir])
 
   const stats = useMemo(() => {
@@ -147,6 +141,8 @@ export default function Page() {
           <span className="search-icon">&#x1F50D;</span>
           <input
             className="search-input"
+            type="search"
+            aria-label="Søk"
             placeholder="Søk produkt, merke, varenr..."
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -165,7 +161,8 @@ export default function Page() {
         </div>
         <select
           className="brand-select"
-          value={merke}
+          aria-label="Merke"
+          value={activeMerke}
           onChange={e => setMerke(e.target.value)}
         >
           <option value="alle">Alle merker</option>

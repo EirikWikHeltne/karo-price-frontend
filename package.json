@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint",
+    "test": "node --test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -14,5 +16,9 @@
     "react-dom": "^18.2.0",
     "recharts": "^3.7.0",
     "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35"
   }
 }

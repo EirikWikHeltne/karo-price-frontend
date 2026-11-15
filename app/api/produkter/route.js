@@ -18,6 +18,7 @@ export async function GET() {
     .order('kategori')
     .order('merke')
     .order('produkt')
+    .order('id')
 
   const { data, error } = await fetchAllRows(query)
 

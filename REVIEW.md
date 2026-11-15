@@ -1,6 +1,6 @@
 # Codebase Review: Karo Price Frontend
 
-_Last reviewed: 2026-05-29_
+_Last reviewed: 2026-11-15_
 
 The earlier round of issues (leaking debug endpoint, PostgREST filter injection,
 per-request Supabase clients, duplicated `RETAILERS` / `fmt` / `fetchAllRows` /
@@ -9,6 +9,14 @@ spread bug, the `window.innerWidth` SSR crash, missing error states and error
 boundary) has been resolved. Shared logic now lives in `lib/` and `components/`,
 the debug route is gated to `NODE_ENV === 'development'`, search input is
 sanitised, and the home page fetches in parallel.
+
+The 2026-11 round fixed: brand filter staying active after it disappeared from
+the dropdown, slow responses overwriting newer selections on the history pages,
+pie labels drawn at the top of the chart on Grafer, silent load failures on
+Grafer/Produkter, the basket savings figure comparing incomplete baskets, a
+made-up "12:00" in the header's updated label, non-deterministic pagination on
+`prissammenligning`, and the SVG-only Open Graph image. ESLint and unit tests
+for `lib/` were added.
 
 ## Outstanding
 
@@ -20,18 +28,18 @@ sanitised, and the home page fetches in parallel.
 - **No `loading.js` files.** Pages handle loading manually instead of using
   Next.js Suspense loading UI.
 
-### Assets
-- **Open Graph image is SVG** (`app/layout.js` → `/og-image.svg`). Facebook,
-  LinkedIn, Slack, iMessage and X do not render SVG for OG previews. Provide a
-  PNG (1200×630) so link previews actually show an image.
+### Data
+- **History pagination has no unique sort key.** `prishistorikk` is paged by
+  `dato` only (`lib/fetchAllRows.js`), so rows sharing a date can in theory be
+  duplicated or skipped across page boundaries. The `prissammenligning` queries
+  now end with `.order('id')`; do the same for `prishistorikk` once its primary
+  key column is confirmed.
 
 ### Developer Experience
-- **No ESLint config**, so `next lint` has nothing to run.
-- **No tests.**
+- **Tests only cover `lib/`** (`npm test`). No component or API route tests.
 - **No TypeScript** — plain JS with no type checking.
+- **No CI** — `npm run lint` and `npm test` are not run automatically.
 
 ### Minor
 - Inline styles are scattered through the page components (especially
   `historikk/page.js`), mixed with the single global stylesheet.
-</content>
-</invoke>

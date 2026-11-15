@@ -44,13 +44,13 @@
   <text x="560" y="415" font-family="Arial, Helvetica, sans-serif" font-size="34" fill="#6B7280">på tvers av norske apotek.</text>
 
   <!-- Gold cross/plus icon -->
-  <g transform="translate(880, 440)">
+  <g transform="translate(1080, 500)">
     <rect x="-6" y="-25" width="12" height="50" rx="4" fill="#110B36"/>
     <rect x="-25" y="-6" width="50" height="12" rx="4" fill="#110B36"/>
   </g>
 
   <!-- Bottom bar text -->
   <text x="600" y="618" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#FAD7C2" letter-spacing="3">KARO HEALTHCARE</text>
-  <circle cx="790" cy="613" r="3" fill="#FAD7C2"/>
-  <text x="810" y="618" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#FAD7C2" letter-spacing="3">APOTEK</text>
+  <circle cx="835" cy="613" r="3" fill="#FAD7C2"/>
+  <text x="855" y="618" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#FAD7C2" letter-spacing="3">APOTEK</text>
 </svg>

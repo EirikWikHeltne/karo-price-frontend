@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area,
@@ -28,10 +28,10 @@ function GrafTooltip({ active, payload, label }) {
   )
 }
 
-function renderGrafPieLabel({ name, value, cx, x }) {
+function renderGrafPieLabel({ name, value, cx, x, y }) {
   const anchor = x > cx ? 'start' : 'end'
   return (
-    <text x={x} y={0} textAnchor={anchor} fontSize={11} fontFamily="Inter" fill="var(--text)">
+    <text x={x} y={y} textAnchor={anchor} dominantBaseline="central" fontSize={11} fontFamily="Inter" fill="var(--text)">
       {name} ({value})
     </text>
   )
@@ -40,14 +40,24 @@ function renderGrafPieLabel({ name, value, cx, x }) {
 export default function GraferPage() {
   const [data, setData]       = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
   const [kategori, setKategori] = useState('alle')
   const [merke, setMerke]     = useState('alle')
 
-  useEffect(() => {
-    fetchJson('/api/priser')
-      .then(d => { setData(Array.isArray(d) ? d : []); setLoading(false) })
-      .catch(() => setLoading(false))
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const json = await fetchJson('/api/priser')
+      setData(Array.isArray(json) ? json : [])
+    } catch (e) {
+      console.error(e)
+      setError('Kunne ikke hente priser. Prøv igjen.')
+    }
+    setLoading(false)
   }, [])
+
+  useEffect(() => { loadData() }, [loadData])
 
   const retailers = useMemo(() => deriveRetailers(data), [data])
 
@@ -160,6 +170,7 @@ export default function GraferPage() {
         </div>
         <select
           className="brand-select"
+          aria-label="Merke"
           value={merke}
           onChange={e => setMerke(e.target.value)}
         >
@@ -173,6 +184,19 @@ export default function GraferPage() {
 
       {loading ? (
         <ChartSkeleton count={4} height={300} />
+      ) : error ? (
+        <div className="empty">
+          <div className="empty-icon">&#9888;</div>
+          <div className="empty-text">{error}</div>
+          <button className="tab active" style={{ marginTop: '1rem' }} onClick={loadData}>
+            Prøv igjen
+          </button>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty">
+          <div className="empty-icon">&#9678;</div>
+          <div className="empty-text">Ingen produkter funnet</div>
+        </div>
       ) : (
         <div className="charts-grid">
           <div className="chart-card">
@@ -207,7 +231,7 @@ export default function GraferPage() {
             <h3 className="chart-title">Billigst oftest</h3>
             <p className="chart-desc">Hvilken kjede har lavest pris flest ganger</p>
             <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
+              <PieChart margin={{ top: 10, right: 80, bottom: 10, left: 80 }}>
                 <Pie
                   {...CHART_ANIM}
                   data={cheapestDist}
@@ -262,7 +286,7 @@ export default function GraferPage() {
                   <ZAxis type="number" dataKey="spread" range={[30, 200]} name="Spread" />
                   <Tooltip
                     formatter={(v, name) => [`${fmt(v)} kr`, name]}
-                    labelFormatter={() => ''}
+                    labelFormatter={(_, payload) => payload?.[0]?.payload?.name || ''}
                     contentStyle={{ fontFamily: 'Inter', fontSize: '0.75rem' }}
                   />
                   <Scatter {...CHART_ANIM} data={scatterData} fill="var(--accent)" fillOpacity={0.4} stroke="var(--accent)" strokeWidth={1} />
