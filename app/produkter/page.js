@@ -1,26 +1,38 @@
 'use client'
-import { useState, useEffect, useMemo, useDeferredValue } from 'react'
+import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { TableSkeleton } from '@/components/Skeleton'
 import { fetchJson } from '@/lib/fetchJson'
 import { CAT_CLASS } from '@/lib/categories'
 import { fmtDate } from '@/lib/format'
+import { matchesSearch } from '@/lib/search'
+import { compareValues } from '@/lib/sort'
 
 export default function ProdukterPage() {
   const [data, setData]         = useState([])
   const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
   const [search, setSearch]     = useState('')
   const deferredSearch = useDeferredValue(search)
   const [kategori, setKategori] = useState('alle')
   const [sortCol, setSortCol]   = useState('kategori')
   const [sortDir, setSortDir]   = useState('asc')
 
-  useEffect(() => {
-    fetchJson('/api/produkter')
-      .then(d => { setData(Array.isArray(d) ? d : []); setLoading(false) })
-      .catch(() => setLoading(false))
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const json = await fetchJson('/api/produkter')
+      setData(Array.isArray(json) ? json : [])
+    } catch (e) {
+      console.error(e)
+      setError('Kunne ikke hente produkter. Prøv igjen.')
+    }
+    setLoading(false)
   }, [])
+
+  useEffect(() => { loadData() }, [loadData])
 
   const categories = useMemo(() => {
     return [...new Set(data.map(r => r.kategori).filter(Boolean))].sort()
@@ -33,21 +45,8 @@ export default function ProdukterPage() {
   const filtered = useMemo(() => {
     let d = data
     if (kategori !== 'alle') d = d.filter(r => r.kategori === kategori)
-    if (deferredSearch) {
-      const s = deferredSearch.toLowerCase()
-      d = d.filter(r =>
-        (r.produkt || '').toLowerCase().includes(s) ||
-        (r.merke || '').toLowerCase().includes(s) ||
-        (r.varenummer || '').toLowerCase().includes(s)
-      )
-    }
-    return [...d].sort((a, b) => {
-      let av = a[sortCol], bv = b[sortCol]
-      if (av === null || av === undefined) av = ''
-      if (bv === null || bv === undefined) bv = ''
-      if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
-      return sortDir === 'asc' ? av - bv : bv - av
-    })
+    if (deferredSearch.trim()) d = d.filter(r => matchesSearch(r, deferredSearch))
+    return [...d].sort((a, b) => compareValues(a[sortCol], b[sortCol], sortDir))
   }, [data, kategori, deferredSearch, sortCol, sortDir])
 
   // Stats by category
@@ -99,6 +98,8 @@ export default function ProdukterPage() {
           <span className="search-icon">&#x1F50D;</span>
           <input
             className="search-input"
+            type="search"
+            aria-label="Søk"
             placeholder="Søk produkt, merke, varenr..."
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -155,6 +156,14 @@ export default function ProdukterPage() {
       <div className="table-wrap">
         {loading ? (
           <TableSkeleton cols={5} label="Henter produkter..." />
+        ) : error ? (
+          <div className="empty">
+            <div className="empty-icon">&#9888;</div>
+            <div className="empty-text">{error}</div>
+            <button className="tab active" style={{ marginTop: '1rem' }} onClick={loadData}>
+              Prøv igjen
+            </button>
+          </div>
         ) : filtered.length === 0 ? (
           <div className="empty">
             <div className="empty-icon">&#9678;</div>

@@ -2,6 +2,7 @@ import { getSupabase } from '@/lib/supabaseServer'
 import { CACHE_HEADERS } from '@/lib/cacheHeaders'
 import { fetchAllRows } from '@/lib/fetchAllRows'
 import { pivotIfNeeded, NON_PRICE_COLS } from '@/lib/pivot'
+import { parseDager } from '@/lib/parseDager'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,7 +46,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const produkt = searchParams.get('produkt')
   const varenummer = searchParams.get('varenummer')
-  const dager = parseInt(searchParams.get('dager') || '30', 10)
+  const dager = parseDager(searchParams.get('dager'), 30)
 
   // Try fetching from prishistorikk table
   let query = supabase

@@ -6,6 +6,7 @@ import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
 import { useLastUpdated } from '@/lib/useLastUpdated'
+import { matchesSearch } from '@/lib/search'
 
 export default function SammenlignPage() {
   const [allProducts, setAllProducts] = useState([])
@@ -35,14 +36,8 @@ export default function SammenlignPage() {
 
   const searchResults = useMemo(() => {
     if (!search.trim() || search.trim().length < 2) return []
-    const q = search.toLowerCase()
     return allProducts
-      .filter(p =>
-        !basket.some(b => b.id === p.id) &&
-        (p.produkt?.toLowerCase().includes(q) ||
-         p.merke?.toLowerCase().includes(q) ||
-         p.varenummer?.toLowerCase().includes(q))
-      )
+      .filter(p => !basket.some(b => b.id === p.id) && matchesSearch(p, search))
       .slice(0, 8)
   }, [search, allProducts, basket])
 
@@ -95,7 +90,10 @@ export default function SammenlignPage() {
   const savings = useMemo(() => {
     if (!totals || !totals.cheapest) return null
     const cheapestTotal = totals[totals.cheapest.key].total
-    const most = Math.max(...retailers.map(r => totals[r.key].count > 0 ? totals[r.key].total : 0))
+    // Sammenlign bare med kjeder som har pris på like mange produkter som den
+    // billigste — en kjede som mangler varer har ellers en kunstig lav sum.
+    const comparable = retailers.filter(r => totals[r.key].count === totals[totals.cheapest.key].count)
+    const most = Math.max(...comparable.map(r => totals[r.key].total))
     if (most <= cheapestTotal) return null
     return most - cheapestTotal
   }, [totals, retailers])
@@ -114,6 +112,8 @@ export default function SammenlignPage() {
           <span className="search-icon">&#x1F50D;</span>
           <input
             className="search-input"
+            type="search"
+            aria-label="Søk"
             placeholder="Søk etter produkt, merke eller varenr..."
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -225,6 +225,7 @@ export default function SammenlignPage() {
                           className="compare-remove-btn"
                           onClick={() => removeFromBasket(row.id)}
                           title="Fjern"
+                          aria-label={`Fjern ${row.produkt}`}
                         >
                           &times;
                         </button>

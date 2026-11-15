@@ -15,9 +15,10 @@ const NAV_ITEMS = [
 
 function formatUpdated(date) {
   if (!date) return null
-  return date.toLocaleDateString('nb-NO', {
-    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-  })
+  if (isNaN(date)) return null
+  // Bare dato: kilden er en ren dato uten klokkeslett, så et klokkeslett her
+  // ville vært oppdiktet.
+  return date.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 export default function Header({ active, lastUpdated, showLastUpdated = true }) {

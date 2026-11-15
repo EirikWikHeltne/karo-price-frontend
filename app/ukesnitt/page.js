@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react'
+import { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { TableSkeleton } from '@/components/Skeleton'
@@ -7,6 +7,8 @@ import { fetchJson } from '@/lib/fetchJson'
 import { deriveRetailers } from '@/lib/retailers'
 import { fmt } from '@/lib/format'
 import { useLastUpdated } from '@/lib/useLastUpdated'
+import { weekMeta } from '@/lib/isoWeek'
+import { matchesSearch } from '@/lib/search'
 
 const WEEK_RANGES = [
   { label: '4 uker', value: 28 },
@@ -15,39 +17,6 @@ const WEEK_RANGES = [
   { label: '26 uker', value: 182 },
   { label: 'Alt', value: 0 },
 ]
-
-// ISO-8601 week number for a given date (Monday-based, week 1 contains Jan 4th).
-function isoWeek(d) {
-  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
-  const dayNum = (date.getUTCDay() + 6) % 7
-  date.setUTCDate(date.getUTCDate() - dayNum + 3)
-  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4))
-  const week = 1 + Math.round(
-    ((date - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7
-  )
-  return { year: date.getUTCFullYear(), week }
-}
-
-// Monday (start) of the ISO week for a given date — used for human-readable labels.
-function isoWeekMonday(d) {
-  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
-  const dayNum = (date.getUTCDay() + 6) % 7
-  date.setUTCDate(date.getUTCDate() - dayNum)
-  return date
-}
-
-function weekMeta(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00Z')
-  if (isNaN(d)) return null
-  const { year, week } = isoWeek(d)
-  const monday = isoWeekMonday(d)
-  return {
-    key: `${year}-W${String(week).padStart(2, '0')}`,
-    week,
-    year,
-    monday: monday.toISOString().slice(0, 10),
-  }
-}
 
 export default function UkesnittPage() {
   const [history, setHistory]   = useState([])
@@ -74,12 +43,19 @@ export default function UkesnittPage() {
       .catch(() => setProducts([]))
   }, [])
 
+  // Teller opp for hvert kall, slik at et tregt svar for en tidligere valgt
+  // periode ikke overskriver svaret for den som er valgt nå.
+  const requestId = useRef(0)
+
   const fetchHistory = useCallback(async () => {
+    const id = ++requestId.current
+    const isStale = () => id !== requestId.current
     setLoading(true)
     setError(null)
     setTableNotFound(false)
     try {
       const json = await fetchJson(`/api/historikk?dager=${dager}`)
+      if (isStale()) return
       if (json?.code === 'TABLE_NOT_FOUND') {
         setTableNotFound(true)
         setHistory([])
@@ -90,6 +66,7 @@ export default function UkesnittPage() {
         setHistory([])
       }
     } catch {
+      if (isStale()) return
       setError('Kunne ikke hente prishistorikk. Prøv igjen.')
       setHistory([])
     }
@@ -172,7 +149,6 @@ export default function UkesnittPage() {
   // Rows for the currently selected chain, with the average computed per week.
   const chainRows = useMemo(() => {
     if (!chain) return []
-    const s = deferredSearch.trim().toLowerCase()
     return rows
       .map(p => {
         const values = {}
@@ -189,10 +165,7 @@ export default function UkesnittPage() {
       .filter(p => p.hasAny)
       .filter(p => kategori === 'alle' || p.kategori === kategori)
       .filter(p => merke === 'alle' || p.merke === merke)
-      .filter(p => !s ||
-        (p.produkt || '').toLowerCase().includes(s) ||
-        (p.merke || '').toLowerCase().includes(s) ||
-        (p.vn || '').toLowerCase().includes(s))
+      .filter(p => matchesSearch({ ...p, varenummer: p.vn }, deferredSearch))
       .sort((a, b) => (a.produkt || '').localeCompare(b.produkt || ''))
   }, [rows, weeks, chain, kategori, merke, deferredSearch])
 
@@ -225,6 +198,8 @@ export default function UkesnittPage() {
           <span className="search-icon">&#x1F50D;</span>
           <input
             className="search-input"
+            type="search"
+            aria-label="Søk"
             placeholder="Søk produkt, merke, varenr..."
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -243,6 +218,7 @@ export default function UkesnittPage() {
         </div>
         <select
           className="brand-select"
+          aria-label="Merke"
           value={merke}
           onChange={e => setMerke(e.target.value)}
         >
